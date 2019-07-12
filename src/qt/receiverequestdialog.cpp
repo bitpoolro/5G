@@ -5,7 +5,7 @@
 #include <qt/receiverequestdialog.h>
 #include <qt/forms/ui_receiverequestdialog.h>
 
-#include <qt/bitcoinunits.h>
+#include <qt/5gunits.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
@@ -18,7 +18,7 @@
 #include <QPixmap>
 
 #if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h> /* for USE_QRCODE */
+#include <config/5g-config.h> /* for USE_QRCODE */
 #endif
 
 #ifdef USE_QRCODE
@@ -131,7 +131,7 @@ void ReceiveRequestDialog::update()
         target = info.address;
     setWindowTitle(tr("Request payment to %1").arg(target));
 
-    QString uri = GUIUtil::formatBitcoinURI(info);
+    QString uri = GUIUtil::format5GURI(info);
     ui->btnSaveAs->setEnabled(false);
     QString html;
     html += "<html><font face='verdana, arial, helvetica, sans-serif'>";
@@ -203,7 +203,7 @@ void ReceiveRequestDialog::update()
 
 void ReceiveRequestDialog::on_btnCopyURI_clicked()
 {
-    GUIUtil::setClipboard(GUIUtil::formatBitcoinURI(info));
+    GUIUtil::setClipboard(GUIUtil::format5GURI(info));
 }
 
 void ReceiveRequestDialog::on_btnCopyAddress_clicked()

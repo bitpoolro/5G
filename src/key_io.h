@@ -26,7 +26,7 @@ CTxDestination DecodeDestination(const std::string& str);
 bool IsValidDestinationString(const std::string& str);
 bool IsValidDestinationString(const std::string& str, const CChainParams& params);
 
-class CBitcoinAddress {
+class C5GAddress {
 
 public:
     bool Set(const CKeyID &id);
@@ -35,10 +35,10 @@ public:
     bool IsValid() const;
     bool IsValid(const CChainParams &params) const;
 
-    CBitcoinAddress();
-    CBitcoinAddress(const CTxDestination &dest);
-    CBitcoinAddress(const std::string& strAddress);
-    CBitcoinAddress(const char* pszAddress);
+    C5GAddress();
+    C5GAddress(const CTxDestination &dest);
+    C5GAddress(const std::string& strAddress);
+    C5GAddress(const char* pszAddress);
 
     CTxDestination Get() const;
     bool GetKeyID(CKeyID &keyID) const;
@@ -46,9 +46,9 @@ public:
     bool IsScript() const;
     std::string ToString() const;
 
-    bool operator==(const CBitcoinAddress &rhs) const;
-    bool operator!=(const CBitcoinAddress &rhs) const;
-    bool operator<(const CBitcoinAddress &rhs) const;
+    bool operator==(const C5GAddress &rhs) const;
+    bool operator!=(const C5GAddress &rhs) const;
+    bool operator<(const C5GAddress &rhs) const;
 
 private:
     CTxDestination txDest;

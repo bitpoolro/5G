@@ -74,7 +74,7 @@ public:
     CMainParams() {
         strNetworkID = "main";
 
-        consensus.nFirstPoSBlock = 100;
+        consensus.nFirstPoSBlock = 50;
         consensus.nInstantSendKeepLock = 24;
         consensus.nBudgetPaymentsStartBlock = 0;
         consensus.nBudgetPaymentsCycleBlocks = 16616;
@@ -133,7 +133,7 @@ public:
         pchMessageStart[1] = 0x4d;
         pchMessageStart[2] = 0xe4;
         pchMessageStart[3] = 0x4f;
-        nDefaultPort = 20000;
+        nDefaultPort = 8333;
         nPruneAfterHeight = 100000;
         nMaxReorganizationDepth = 100;
 
@@ -164,11 +164,11 @@ public:
 
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_main, pnSeed6_main + ARRAYLEN(pnSeed6_main));
 
-        fMiningRequiresPeers = true;
+        fMiningRequiresPeers = false;
         fDefaultConsistencyChecks = false;
         fRequireStandard = true;
         fMineBlocksOnDemand = false;
-        nCollateralLevels = { 0 };
+        nCollateralLevels = { 1000, 2500, 5000 };
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 60*60;
         strSporkPubKey = "";

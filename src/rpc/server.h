@@ -138,7 +138,7 @@ public:
 };
 
 /**
- * BTC RPC command dispatcher.
+ * 5G RPC command dispatcher.
  */
 class CRPCTable
 {

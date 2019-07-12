@@ -175,7 +175,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             total += subtotal;
         }
         else
-        {   // User-entered bitcoin address / amount:
+        {   // User-entered 5g address / amount:
             if(!validateAddress(rcp.address))
             {
                 return InvalidAddress;
@@ -269,7 +269,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
                 rcp.paymentRequest.SerializeToString(&value);
                 vOrderForm.emplace_back("PaymentRequest", std::move(value));
             }
-            else if (!rcp.message.isEmpty()) // Message from normal bitcoin:URI (bitcoin:123...?message=example)
+            else if (!rcp.message.isEmpty()) // Message from normal 5g:URI (5g:123...?message=example)
                 vOrderForm.emplace_back("Message", rcp.message.toStdString());
         }
 

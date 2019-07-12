@@ -318,10 +318,10 @@ int CPrivateSend::GetDenominations(const std::vector<CTxOut>& vecTxOut, bool fSi
 bool CPrivateSend::GetDenominationsBits(int nDenom, std::vector<int> &vecBitsRet)
 {
     // ( bit on if present, 4 denominations example )
-    // bit 0 - 100Bitcoin+1
-    // bit 1 - 10Bitcoin+1
-    // bit 2 - 1Bitcoin+1
-    // bit 3 - .1Bitcoin+1
+    // bit 0 - 1005G+1
+    // bit 1 - 105G+1
+    // bit 2 - 15G+1
+    // bit 3 - .15G+1
 
     int nMaxDenoms = vecStandardDenominations.size();
 
@@ -450,14 +450,14 @@ void CPrivateSend::SyncTransaction(const CTransaction& tx, const CBlock* pblock)
 //TODO: Rename/move to core
 void ThreadCheckPrivateSend(CConnman& connman)
 {
-    if(fLiteMode) return; // disable all Bitcoin specific functionality
+    if(fLiteMode) return; // disable all 5G specific functionality
 
     static bool fOneThread;
     if(fOneThread) return;
     fOneThread = true;
 
     // Make this thread recognisable as the PrivateSend thread
-    RenameThread("bitcoin-ps");
+    RenameThread("5g-ps");
 
     unsigned int nTick = 0;
 

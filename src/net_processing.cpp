@@ -44,7 +44,7 @@
 #include <memory>
 
 #if defined(NDEBUG)
-# error "Bitcoin cannot be compiled without assertions."
+# error "5G cannot be compiled without assertions."
 #endif
 
 std::atomic<int64_t> nTimeBestReceived(0); // Used only to inform the wallet of when we last received a block
@@ -1039,7 +1039,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 
 
     // process one of the extensions
-    return net_processing_bitcoin::AlreadyHave(inv);
+    return net_processing_5g::AlreadyHave(inv);
 }
 
 static void RelayTransaction(const CTransaction& tx, CConnman* connman)
@@ -1250,7 +1250,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
             CInv &inv = *it;
             it++;
 
-            net_processing_bitcoin::TransformInvForLegacyVersion(inv, pfrom, false);
+            net_processing_5g::TransformInvForLegacyVersion(inv, pfrom, false);
 
             // Send stream from relay memory
             bool push = false;
@@ -1277,7 +1277,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
             }
             else
             {
-                push = net_processing_bitcoin::ProcessGetData(pfrom, consensusParams, connman, inv);
+                push = net_processing_5g::ProcessGetData(pfrom, consensusParams, connman, inv);
             }
 
             if (!push) {
@@ -1942,7 +1942,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             if (interruptMsgProc)
                 return true;
 
-            net_processing_bitcoin::TransformInvForLegacyVersion(inv, pfrom, false);
+            net_processing_5g::TransformInvForLegacyVersion(inv, pfrom, false);
 
             bool fAlreadyHave = AlreadyHave(inv);
             LogPrint(BCLog::NET, "got inv: %s  %s peer=%d\n", inv.ToString(), fAlreadyHave ? "have" : "new", pfrom->GetId());
@@ -2269,7 +2269,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         if (!orphanTx.HasWitness() && !stateDummy.CorruptionPossible()) {
                             // Do not use rejection cache for witness transactions or
                             // witness-stripped transactions, as they can have been malleated.
-                            // See https://github.com/bitcoin/bitcoin/issues/8279 for details.
+                            // See https://github.com/5g/5g/issues/8279 for details.
                             assert(recentRejects);
                             recentRejects->insert(orphanHash);
                         }
@@ -2315,7 +2315,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             if (!tx.HasWitness() && !state.CorruptionPossible()) {
                 // Do not use rejection cache for witness transactions or
                 // witness-stripped transactions, as they can have been malleated.
-                // See https://github.com/bitcoin/bitcoin/issues/8279 for details.
+                // See https://github.com/5g/5g/issues/8279 for details.
                 assert(recentRejects);
                 recentRejects->insert(tx.GetHash());
                 if (RecursiveDynamicUsage(*ptx) < 100000) {
@@ -2958,7 +2958,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         const auto &allMessages = getAllNetMessageTypes();
         if(std::find(std::begin(allMessages), std::end(allMessages), strCommand) != std::end(allMessages))
         {
-            net_processing_bitcoin::ProcessExtension(pfrom, strCommand, vRecv, connman);
+            net_processing_5g::ProcessExtension(pfrom, strCommand, vRecv, connman);
         }
         else
         {
@@ -3658,7 +3658,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto, std::atomic<bool>& interruptM
 
             for(auto &&inv : pto->vInventoryToSend)
             {
-                net_processing_bitcoin::TransformInvForLegacyVersion(inv, pto, true);
+                net_processing_5g::TransformInvForLegacyVersion(inv, pto, true);
                 vInv.push_back(inv);
                 if (vInv.size() == MAX_INV_SZ)
                 {
@@ -3768,7 +3768,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto, std::atomic<bool>& interruptM
                          pto->GetSendVersion(),
                          pto->GetRecvVersion());
 
-                net_processing_bitcoin::TransformInvForLegacyVersion(inv, pto, true);
+                net_processing_5g::TransformInvForLegacyVersion(inv, pto, true);
 
                 vGetData.push_back(inv);
                 if (vGetData.size() >= 1000)
@@ -3834,7 +3834,7 @@ enum {
     // Nodes may always request a MSG_FILTERED_BLOCK in a getdata, however,
     // MSG_FILTERED_BLOCK should not appear in any invs except as a part of getdata.
     MSG_FILTERED_BLOCK,
-    // Bitcoin message types
+    // 5G message types
     // NOTE: declare non-implmented here, we must keep this enum consistent and backwards compatible
     MSG_TXLOCK_REQUEST,
     MSG_TXLOCK_VOTE,
@@ -3948,7 +3948,7 @@ static const MapSporkHandlers &GetMapGetDataHandlers()
     return sporkHandlers;
 }
 
-bool net_processing_bitcoin::ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParams, CConnman *connman, const CInv &inv)
+bool net_processing_5g::ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParams, CConnman *connman, const CInv &inv)
 {
     const auto &handlersMap = GetMapGetDataHandlers();
     auto it = handlersMap.find(inv.type);
@@ -3965,7 +3965,7 @@ bool net_processing_bitcoin::ProcessGetData(CNode *pfrom, const Consensus::Param
     return false;
 }
 
-void net_processing_bitcoin::ProcessExtension(CNode *pfrom, const std::string &strCommand, CDataStream &vRecv, CConnman *connman)
+void net_processing_5g::ProcessExtension(CNode *pfrom, const std::string &strCommand, CDataStream &vRecv, CConnman *connman)
 {
     mnodeman.ProcessMessage(pfrom, strCommand, vRecv, *connman);
     mnpayments.ProcessMessage(pfrom, strCommand, vRecv, *connman);
@@ -3975,16 +3975,16 @@ void net_processing_bitcoin::ProcessExtension(CNode *pfrom, const std::string &s
     governance.ProcessMessage(pfrom, strCommand, vRecv, *connman);
 }
 
-void net_processing_bitcoin::ThreadProcessExtensions(CConnman *pConnman)
+void net_processing_5g::ThreadProcessExtensions(CConnman *pConnman)
 {
-    if(fLiteMode) return; // disable all Bitcoin specific functionality
+    if(fLiteMode) return; // disable all 5G specific functionality
 
     static bool fOneThread;
     if(fOneThread) return;
     fOneThread = true;
 
     // Make this thread recognisable as the PrivateSend thread
-    RenameThread("bitcoin-ps");
+    RenameThread("5g-ps");
 
     unsigned int nTick = 0;
 
@@ -4029,12 +4029,12 @@ void net_processing_bitcoin::ThreadProcessExtensions(CConnman *pConnman)
     }
 }
 
-bool net_processing_bitcoin::AlreadyHave(const CInv &inv)
+bool net_processing_5g::AlreadyHave(const CInv &inv)
 {
     switch(inv.type)
     {
     /*
-    Bitcoin Related Inventory Messages
+    5G Related Inventory Messages
 
     --
 
@@ -4118,7 +4118,7 @@ static int MapCurrentToLegacy(int nCurrentType)
     return nCurrentType;
 }
 
-bool net_processing_bitcoin::TransformInvForLegacyVersion(CInv &inv, CNode *pfrom, bool fForSending)
+bool net_processing_5g::TransformInvForLegacyVersion(CInv &inv, CNode *pfrom, bool fForSending)
 {
     if(pfrom->GetSendVersion() == PRESEGWIT_PROTO_VERSION)
     {

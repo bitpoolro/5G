@@ -46,10 +46,10 @@ static const int MAX_URI_LENGTH = 255;
 /* Number of frames in spinner animation */
 #define SPINNER_FRAMES 36
 
-#define QAPP_ORG_NAME "Bitcoin"
-#define QAPP_ORG_DOMAIN "bitcoin.org"
-#define QAPP_APP_NAME_DEFAULT "Bitcoin-Qt"
-#define QAPP_APP_NAME_TESTNET "Bitcoin-Qt-testnet"
-#define QAPP_APP_NAME_REGTEST "Bitcoin-Qt-regtest"
+#define QAPP_ORG_NAME "5G"
+#define QAPP_ORG_DOMAIN "5G.org"
+#define QAPP_APP_NAME_DEFAULT "5G-Qt"
+#define QAPP_APP_NAME_TESTNET "5G-Qt-testnet"
+#define QAPP_APP_NAME_REGTEST "5G-Qt-regtest"
 
 #endif // BITCOIN_QT_GUICONSTANTS_H

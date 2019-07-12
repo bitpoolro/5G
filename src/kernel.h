@@ -33,7 +33,7 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
                           const CTransactionRef& txPrev, const COutPoint& prevout, unsigned int nTimeTx,
                           uint256& hashProofOfStake, bool fMinting = true, bool fValidate = true);
 
-// wrapper for checkstakekernelhash (bitcoin routine) for traditional method
+// wrapper for checkstakekernelhash (5g routine) for traditional method
 bool CheckStake(unsigned int nBits, const CBlock blockFrom, const CTransaction txPrev, const COutPoint prevout, unsigned int& nTimeTx, unsigned int nHashDrift, bool fCheck, uint256& hashProofOfStake, bool fPrintProofOfStake);
 
 // Check kernel hash target and coinstake signature

@@ -7,8 +7,8 @@
 #define BITCOIN_QT_WALLETVIEW_H
 
 #include <amount.h>
+
 #include <qt/masternodelist.h>
-#include <governancelist.h>
 
 #include <QStackedWidget>
 
@@ -49,7 +49,7 @@ public:
     void setClientModel(ClientModel *clientModel);
     WalletModel *getWalletModel() { return walletModel; }
     /** Set the wallet model.
-        The wallet model represents a bitcoin wallet, and offers access to the list of transactions, address book and sending
+        The wallet model represents a 5g wallet, and offers access to the list of transactions, address book and sending
         functionality.
     */
     void setWalletModel(WalletModel *walletModel);
@@ -68,8 +68,9 @@ private:
     SendCoinsDialog *sendCoinsPage;
     AddressBookPage *usedSendingAddressesPage;
     AddressBookPage *usedReceivingAddressesPage;
+
     MasternodeList *masternodeListPage;
-    GovernanceList *governanceListPage;
+    //
 
     TransactionView *transactionView;
 
@@ -81,10 +82,11 @@ public Q_SLOTS:
     void gotoOverviewPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
+
     /** Switch to masternode page */
     void gotoMasternodePage();
-    /** Switch to governance page */
-    void gotoGovernancePage();
+    //
+
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

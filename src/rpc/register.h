@@ -19,8 +19,8 @@ void RegisterMiscRPCCommands(CRPCTable &tableRPC);
 void RegisterMiningRPCCommands(CRPCTable &tableRPC);
 /** Register raw transaction RPC commands */
 void RegisterRawTransactionRPCCommands(CRPCTable &tableRPC);
-/** Register Bitcoin misc RPC commands */
-void RegisterBitcoinMiscCommands(CRPCTable &tableRPC);
+/** Register 5G misc RPC commands */
+void Register5GMiscCommands(CRPCTable &tableRPC);
 void RegisterMasternodeCommands(CRPCTable &tableRPC);
 void RegisterGovernanceRPCCommands(CRPCTable &tableRPC);
 
@@ -31,7 +31,7 @@ static inline void RegisterAllCoreRPCCommands(CRPCTable &t)
     RegisterMiscRPCCommands(t);
     RegisterMiningRPCCommands(t);
     RegisterRawTransactionRPCCommands(t);
-    RegisterBitcoinMiscCommands(t);
+    Register5GMiscCommands(t);
     RegisterMasternodeCommands(t);
     RegisterGovernanceRPCCommands(t);
 }

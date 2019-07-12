@@ -236,7 +236,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(CWallet *wallet, 
 
 		CTxDestination address1;
 		ExtractDestination(payee, address1);
-		CBitcoinAddress address2(address1);
+		C5GAddress address2(address1);
 		LogPrintf("CreateNewBlock::FillBlockPayee -- Masternode payment %lld to %s\n",
 			  masternodePayment, EncodeDestination(address1));
          }
@@ -570,9 +570,9 @@ static bool ProcessBlockFound(const std::shared_ptr<const CBlock> &pblock, const
 
 void static BitcoinMiner(const CChainParams& chainparams, CConnman& connman, CWallet* pwallet, bool fProofOfStake)
 {
-    LogPrintf("bitcoinminer -- started\n");
+    LogPrintf("5gminer -- started\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
-    RenameThread("bitcoin-miner");
+    RenameThread("5g-miner");
 
     unsigned int nExtraNonce = 0;
 
@@ -621,14 +621,14 @@ void static BitcoinMiner(const CChainParams& chainparams, CConnman& connman, CWa
             auto pblocktemplate = assemlber.CreateNewBlock(pwallet, coinbaseScript->reserveScript, fProofOfStake, true);
             if (!pblocktemplate.get())
             {
-                LogPrintf("bitcoinminer -- Failed to find a coinstake\n");
+                LogPrintf("5gminer -- Failed to find a coinstake\n");
                 MilliSleep(5000);
                 continue;
             }
             auto pblock = std::make_shared<CBlock>(pblocktemplate->block);
             IncrementExtraNonce(pblock.get(), pindexPrev, nExtraNonce);
 
-            LogPrintf("BitcoinMiner -- Running miner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
+            LogPrintf("5GMiner -- Running miner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
                       ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
             //Sign block
@@ -637,7 +637,7 @@ void static BitcoinMiner(const CChainParams& chainparams, CConnman& connman, CWa
                 LogPrintf("CPUMiner : proof-of-stake block found %s \n", pblock->GetHash().ToString().c_str());
 
                 if (!SignBlock(*pblock, *pwallet)) {
-                    LogPrintf("BitcoinMiner(): Signing new block failed \n");
+                    LogPrintf("5GMiner(): Signing new block failed \n");
                     throw std::runtime_error(strprintf("%s: SignBlock failed", __func__));
                 }
 
@@ -676,7 +676,7 @@ void static BitcoinMiner(const CChainParams& chainparams, CConnman& connman, CWa
                     {
                         // Found a solution
                         SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                        LogPrintf("bitcoinminer:\n  proof-of-work found\n  hash: %s\n  target: %s\n", hash.GetHex(), hashTarget.GetHex());
+                        LogPrintf("5gminer:\n  proof-of-work found\n  hash: %s\n  target: %s\n", hash.GetHex(), hashTarget.GetHex());
                         ProcessBlockFound(pblock, chainparams);
                         SetThreadPriority(THREAD_PRIORITY_LOWEST);
                         coinbaseScript->KeepScript();
@@ -707,18 +707,18 @@ void static BitcoinMiner(const CChainParams& chainparams, CConnman& connman, CWa
         }
         catch (const boost::thread_interrupted&)
         {
-            LogPrintf("BitcoinMiner -- terminated\n");
+            LogPrintf("5GMiner -- terminated\n");
             throw;
         }
         catch (const std::runtime_error &e)
         {
-            LogPrintf("bitcoinminer -- runtime error: %s\n", e.what());
+            LogPrintf("5gminer -- runtime error: %s\n", e.what());
             //            return;
         }
     }
 }
 
-void GenerateBitcoins(bool fGenerate,
+void Generate5Gs(bool fGenerate,
                   int nThreads,
                   const CChainParams& chainparams,
                   CConnman &connman)

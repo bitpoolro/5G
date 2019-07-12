@@ -12,7 +12,7 @@
 #include <governance/governance-vote.h>
 #include <governance/governance-classes.h>
 #include <governance/governance-validators.h>
-#include <bitcoinunits.h>
+#include <5gunits.h>
 #include <guiconstants.h>
 #include <guiutil.h>
 #include <messagesigner.h>
@@ -31,7 +31,7 @@
 #endif
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h" /* for USE_QRCODE */
+#include "config/5g-config.h" /* for USE_QRCODE */
 #endif
 
 #ifdef USE_QRCODE

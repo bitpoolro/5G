@@ -4,7 +4,7 @@
 
 #include <qt/recentrequeststablemodel.h>
 
-#include <qt/bitcoinunits.h>
+#include <qt/5gunits.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 

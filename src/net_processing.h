@@ -113,7 +113,7 @@ class CConnman;
 class CNetMsgMaker;
 class CDataStream;
 
-namespace net_processing_bitcoin
+namespace net_processing_5g
 {
 	bool ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParams, CConnman* connman,
 						const CInv &inv);
@@ -134,7 +134,7 @@ class CConnman;
 class CNetMsgMaker;
 class CDataStream;
 
-namespace net_processing_bitcoin
+namespace net_processing_5g
 {
 	bool ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParams, CConnman* connman,
 						const CInv &inv);

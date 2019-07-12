@@ -82,10 +82,10 @@
 // Application startup time (used for uptime calculation)
 const int64_t nStartupTime = GetTime();
 
-const char * const BITCOIN_CONF_FILENAME = "bitcoin.conf";
-const char * const BITCOIN_PID_FILENAME = "bitcoind.pid";
+const char * const BITCOIN_CONF_FILENAME = "5g.conf";
+const char * const BITCOIN_PID_FILENAME = "5gd.pid";
 
-//Bitcoin only features
+//5G only features
 bool fMasterNode = false;
 bool fLiteMode = false;
 bool fMerchantNode = false;
@@ -285,7 +285,7 @@ public:
         std::pair<bool,std::string> found_result(false, std::string());
 
         // We pass "true" to GetArgHelper in order to return the last
-        // argument value seen from the command line (so "bitcoind -foo=bar
+        // argument value seen from the command line (so "5gd -foo=bar
         // -foo=baz" gives GetArg(am,"foo")=={true,"baz"}
         found_result = GetArgHelper(am.m_override_args, arg, true);
         if (found_result.first) {
@@ -700,7 +700,7 @@ static std::string FormatException(const std::exception* pex, const char* pszThr
     char pszModule[MAX_PATH] = "";
     GetModuleFileNameA(nullptr, pszModule, sizeof(pszModule));
 #else
-    const char* pszModule = "bitcoin";
+    const char* pszModule = "5g";
 #endif
     if (pex)
         return strprintf(
@@ -719,13 +719,13 @@ void PrintExceptionContinue(const std::exception* pex, const char* pszThread)
 
 fs::path GetDefaultDataDir()
 {
-    // Windows < Vista: C:\Documents and Settings\Username\Application Data\Bitcoin
-    // Windows >= Vista: C:\Users\Username\AppData\Roaming\Bitcoin
-    // Mac: ~/Library/Application Support/Bitcoin
-    // Unix: ~/.bitcoin
+    // Windows < Vista: C:\Documents and Settings\Username\Application Data\5G
+    // Windows >= Vista: C:\Users\Username\AppData\Roaming\5G
+    // Mac: ~/Library/Application Support/5G
+    // Unix: ~/.5g
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "Bitcoin";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "5G";
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");
@@ -735,10 +735,10 @@ fs::path GetDefaultDataDir()
         pathRet = fs::path(pszHome);
 #ifdef MAC_OSX
     // Mac
-    return pathRet / "Library/Application Support/Bitcoin";
+    return pathRet / "Library/Application Support/5G";
 #else
     // Unix
-    return pathRet / ".bitcoin";
+    return pathRet / ".5G";
 #endif
 #endif
 }

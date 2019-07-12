@@ -74,7 +74,7 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
     std::vector<unsigned char> data;
     uint160 hash;
     if (DecodeBase58Check(str, data)) {
-        // base58-encoded Bitcoin addresses.
+        // base58-encoded 5G addresses.
         // Public-key-hash-addresses have version 0 (or 111 testnet).
         // The data vector contains RIPEMD160(SHA256(pubkey)), where pubkey is the serialized public key.
         const std::vector<unsigned char>& pubkey_prefix = params.Base58Prefix(CChainParams::PUBKEY_ADDRESS);
@@ -225,79 +225,79 @@ bool IsValidDestinationString(const std::string& str)
     return IsValidDestinationString(str, Params());
 }
 
-CBitcoinAddress::CBitcoinAddress()
+C5GAddress::C5GAddress()
 {
     Set(CNoDestination());
 }
 
-CBitcoinAddress::CBitcoinAddress(const CTxDestination &dest)
+C5GAddress::C5GAddress(const CTxDestination &dest)
 {
     txDest = dest;
 }
 
-CBitcoinAddress::CBitcoinAddress(const std::string &strAddress)
+C5GAddress::C5GAddress(const std::string &strAddress)
 {
     Set(DecodeDestination(strAddress));
 }
 
-CBitcoinAddress::CBitcoinAddress(const char *pszAddress)
+C5GAddress::C5GAddress(const char *pszAddress)
 {
     Set(DecodeDestination(std::string(pszAddress)));
 }
 
-bool CBitcoinAddress::Set(const CKeyID &id)
+bool C5GAddress::Set(const CKeyID &id)
 {
     return Set(CTxDestination(id));
 }
 
-bool CBitcoinAddress::Set(const CScriptID &id)
+bool C5GAddress::Set(const CScriptID &id)
 {
     return Set(CTxDestination(id));
 }
 
-bool CBitcoinAddress::Set(const CTxDestination &dest)
+bool C5GAddress::Set(const CTxDestination &dest)
 {
     txDest = dest;
     return IsValid();
 }
 
 
-bool CBitcoinAddress::IsValid() const
+bool C5GAddress::IsValid() const
 {
     return !boost::get<CNoDestination>(&txDest);
 }
 
-bool CBitcoinAddress::IsValid(const CChainParams &params) const
+bool C5GAddress::IsValid(const CChainParams &params) const
 {
     return IsValidDestinationString(EncodeDestination(txDest), params);
 }
 
-std::string CBitcoinAddress::ToString() const
+std::string C5GAddress::ToString() const
 {
     return EncodeDestination(txDest);
 }
 
-bool CBitcoinAddress::operator==(const CBitcoinAddress &rhs) const
+bool C5GAddress::operator==(const C5GAddress &rhs) const
 {
     return txDest == rhs.txDest;
 }
 
-bool CBitcoinAddress::operator!=(const CBitcoinAddress &rhs) const
+bool C5GAddress::operator!=(const C5GAddress &rhs) const
 {
     return !(txDest == rhs.txDest);
 }
 
-bool CBitcoinAddress::operator<(const CBitcoinAddress &rhs) const
+bool C5GAddress::operator<(const C5GAddress &rhs) const
 {
     return txDest < rhs.txDest;
 }
 
-CTxDestination CBitcoinAddress::Get() const
+CTxDestination C5GAddress::Get() const
 {
     return txDest;
 }
 
-bool CBitcoinAddress::GetKeyID(CKeyID &keyID) const
+bool C5GAddress::GetKeyID(CKeyID &keyID) const
 {
     if(const CKeyID *pKeyID = boost::get<CKeyID>(&txDest))
     {
@@ -308,7 +308,7 @@ bool CBitcoinAddress::GetKeyID(CKeyID &keyID) const
     return false;
 }
 
-bool CBitcoinAddress::IsScript() const
+bool C5GAddress::IsScript() const
 {
     return boost::get<CScriptID>(&txDest);
 }

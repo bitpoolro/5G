@@ -36,7 +36,7 @@ class QUrl;
 class QWidget;
 QT_END_NAMESPACE
 
-/** Utility functions used by the Bitcoin Qt UI.
+/** Utility functions used by the 5G Qt UI.
  */
 namespace GUIUtil
 {
@@ -50,10 +50,10 @@ namespace GUIUtil
     // Set up widget for address
     void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent);
 
-    // Parse "bitcoin:" URI into recipient object, return true on successful parsing
-    bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out);
-    bool parseBitcoinURI(QString uri, SendCoinsRecipient *out);
-    QString formatBitcoinURI(const SendCoinsRecipient &info);
+    // Parse "5g:" URI into recipient object, return true on successful parsing
+    bool parse5GURI(const QUrl &uri, SendCoinsRecipient *out);
+    bool parse5GURI(QString uri, SendCoinsRecipient *out);
+    QString format5GURI(const SendCoinsRecipient &info);
 
     // Returns true if given address+amount meets "dust" definition
     bool isDust(interfaces::Node& node, const QString& address, const CAmount& amount);
@@ -123,9 +123,9 @@ namespace GUIUtil
     void openDebugLogfile();
 
     // Open the config file
-    bool openBitcoinConf();
+    bool open5GConf();
 
-    // Open bitcoin.conf
+    // Open 5g.conf
     void openConfigfile();
 
     // Open masternode.conf
