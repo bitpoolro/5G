@@ -203,43 +203,37 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(CWallet *wallet, 
     else
     {
 
-        if (nHeight <= Params().GetConsensus().nFirstPoSBlock) {
+    if (nHeight <= Params().GetConsensus().nFirstPoSBlock) {
+        coinbaseTx.vout[0].nValue = nFees + blockReward;
+    } else {
+            CScript payee1, payee2;
+            {
+                    int nCount = 0;
+                    masternode_info_t mnInfo;
 
-		coinbaseTx.vout[0].nValue = nFees + blockReward;
+                    // small node
+                    if(!mnodeman.GetNextMasternodeInQueueForPayment(pindexPrev->nHeight + 1, true, nCount, mnInfo, 0))
+                        payee1 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
+                    else
+                        LogPrint(BCLog::MNPAYMENTS, "CreateNewBlock: Failed to detect small masternode to pay\n");
 
-        } else {
+                    // large node
+                    if(!mnodeman.GetNextMasternodeInQueueForPayment(pindexPrev->nHeight + 1, true, nCount, mnInfo, 1))
+                        payee2 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
+                    else
+                        LogPrint(BCLog::MNPAYMENTS, "CreateNewBlock: Failed to detect large masternode to pay\n");
+            }
 
-		// masternode payment
+            CAmount masternodePaymentSmall = GetMasternodePayment(0, blockReward);
+            CAmount masternodePaymentLarge = GetMasternodePayment(1, blockReward);
 
-		bool hasPayment = true;
-		CScript payee;
-
-		if (!mnpayments.GetBlockPayee(nHeight, payee)) {
-			int nCount = 0;
-			masternode_info_t mnInfo;
-			if(!mnodeman.GetNextMasternodeInQueueForPayment(pindexPrev->nHeight + 1, true, nCount, mnInfo)) {
-				payee = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
-			} else {
-				LogPrint(BCLog::MNPAYMENTS, "CreateNewBlock: Failed to detect masternode to pay\n");
-				hasPayment = false;
-			}
-		}
-
-		CAmount masternodePayment = GetMasternodePayment(nHeight, blockReward);
-
-		if (hasPayment) {
-			coinbaseTx.vout.resize(2);
-			coinbaseTx.vout[1].scriptPubKey = payee;
-			coinbaseTx.vout[1].nValue = masternodePayment;
-			coinbaseTx.vout[0].nValue = blockReward - masternodePayment;
-		}
-
-		CTxDestination address1;
-		ExtractDestination(payee, address1);
-		C5GAddress address2(address1);
-		LogPrintf("CreateNewBlock::FillBlockPayee -- Masternode payment %lld to %s\n",
-			  masternodePayment, EncodeDestination(address1));
-         }
+            coinbaseTx.vout.resize(3);
+            coinbaseTx.vout[2].scriptPubKey = payee2;
+            coinbaseTx.vout[2].nValue = masternodePaymentLarge;
+            coinbaseTx.vout[1].scriptPubKey = payee1;
+            coinbaseTx.vout[1].nValue = masternodePaymentSmall;
+            coinbaseTx.vout[0].nValue = (blockReward - masternodePaymentLarge) - masternodePaymentSmall;
+       }
     }
 
     int nPackagesSelected = 0;
@@ -265,9 +259,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(CWallet *wallet, 
     pblocktemplate->vTxSigOpsCost[0] = WITNESS_SCALE_FACTOR * GetLegacySigOpCount(*pblock->vtx[0]);
 
     CValidationState state;
-    //    if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
-    //        throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
-    //    }
+    if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
+        throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
+    }
     int64_t nTime2 = GetTimeMicros();
 
     LogPrint(BCLog::BENCH, "CreateNewBlock() packages: %.2fms (%d packages, %d updated descendants), validity: %.2fms (total %.2fms)\n", 0.001 * (nTime1 - nTimeStart), nPackagesSelected, nDescendantsUpdated, 0.001 * (nTime2 - nTime1), 0.001 * (nTime2 - nTimeStart));

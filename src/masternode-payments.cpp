@@ -225,14 +225,6 @@ bool IsBlockPayeeValid(const CTransactionRef& txNew, int nBlockHeight, CAmount e
 
 void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet)
 {
-    // only create superblocks if spork is enabled AND if superblock is actually triggered
-    // (height should be validated inside)
-    if(sporkManager.IsSporkActive(Spork::SPORK_9_SUPERBLOCKS_ENABLED) &&
-        CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
-            LogPrint(BCLog::MNPAYMENTS, "FillBlockPayments -- triggered superblock creation at height %d\n", nBlockHeight);
-            CSuperblockManager::CreateSuperblock(txNew, nBlockHeight, voutSuperblockRet);
-            return;
-    }
 
     // FILL BLOCK PAYEE WITH MASTERNODE PAYMENT OTHERWISE
     mnpayments.FillBlockPayee(txNew, nBlockHeight, blockReward, txoutMasternodeRet);
@@ -282,31 +274,32 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
     // make sure it's not filled yet
     txoutMasternodeRet = CTxOut();
 
-    CScript payee;
-
-    if(!mnpayments.GetBlockPayee(nBlockHeight, payee)) {
-        // no masternode detected...
+    CScript payee1, payee2;
+    {
         int nCount = 0;
         masternode_info_t mnInfo;
-        if(!mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo)) {
-            // ...and we can't calculate it on our own
-            LogPrintf("CMasternodePayments::FillBlockPayee -- Failed to detect masternode to pay\n");
-            return;
-        }
-        // fill payee with locally calculated winner and hope for the best
-        payee = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
+
+        // small node
+        if(!mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo, 0))
+            payee1 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
+        else
+            LogPrint(BCLog::MNPAYMENTS, "CreateNewBlock: Failed to detect small masternode to pay\n");
+
+        nCount++;
+
+        // large node
+        if(!mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo, 1))
+            payee2 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
+        else
+            LogPrint(BCLog::MNPAYMENTS, "CreateNewBlock: Failed to detect large masternode to pay\n");
     }
 
-    // GET MASTERNODE PAYMENT VARIABLES SETUP
-    CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward);
-
-    txoutMasternodeRet = CTxOut(masternodePayment, payee);
-    txNew.vout.push_back(txoutMasternodeRet);
-
-    CTxDestination address1;
-    ExtractDestination(payee, address1);
-
-    LogPrintf("CMasternodePayments::FillBlockPayee -- Masternode payment %lld to %s\n", masternodePayment, EncodeDestination(address1));
+    CAmount masternodePaymentSmall = GetMasternodePayment(0, blockReward);
+    CAmount masternodePaymentLarge = GetMasternodePayment(1, blockReward);
+    txNew.vout[1].nValue -= GetMasternodePayment(0, blockReward);
+    txNew.vout.push_back(CTxOut(masternodePaymentSmall, payee1));
+    txNew.vout[1].nValue -= GetMasternodePayment(1, blockReward);
+    txNew.vout.push_back(CTxOut(masternodePaymentLarge, payee2));
 }
 
 int CMasternodePayments::GetMinMasternodePaymentsProto() {
@@ -752,7 +745,7 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight, CConnman& connman)
     int nCount = 0;
     masternode_info_t mnInfo;
 
-    if (!mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo)) {
+    if (!mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo, 1)) {
         LogPrintf("CMasternodePayments::ProcessBlock -- ERROR: Failed to find masternode to pay\n");
         return false;
     }
