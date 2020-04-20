@@ -170,70 +170,45 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(CWallet *wallet, 
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    CAmount blockReward = GetBlockSubsidy(pindexPrev->nHeight, Params().GetConsensus());
+    CAmount refBlockReward = GetBlockSubsidy(pindexPrev->nHeight, Params().GetConsensus());
+    CAmount blockReward = refBlockReward -
+                          GetMasternodePayment(0, refBlockReward) -
+                          GetMasternodePayment(1, refBlockReward) -
+                          GetMasternodePayment(2, refBlockReward);
     std::vector<const CWalletTx*> vwtxPrev;
-    if(fProofOfStake && !sporkManager.IsSporkActive(Spork::SPORK_15_POS_DISABLED))
-    {
+    if(fProofOfStake) {
         assert(wallet);
         boost::this_thread::interruption_point();
         pblock->nBits = GetNextWorkRequired(pindexPrev, chainparams.GetConsensus(), fProofOfStake);
         CMutableTransaction coinstakeTx;
         int64_t nSearchTime = pblock->nTime; // search to current time
         bool fStakeFound = false;
+
         if (nSearchTime >= nLastCoinStakeSearchTime) {
             unsigned int nTxNewTime = 0;
-            if (wallet->CreateCoinStake(*wallet, pblock->nBits, blockReward,
-                                        coinstakeTx, nTxNewTime,
-                                        vwtxPrev, fIncludeWitness))
+            if (wallet->CreateCoinStake(*wallet, pblock->nBits, refBlockReward, coinstakeTx, nTxNewTime, vwtxPrev, fIncludeWitness))
             {
                 pblock->nTime = nTxNewTime;
                 coinbaseTx.vout[0].SetEmpty();
+                FillBlockPayments(coinstakeTx, nHeight, refBlockReward, pblock->txoutMasternode, pblock->voutSuperblock, true);
                 pblock->vtx.emplace_back(MakeTransactionRef(coinstakeTx));
-
                 fStakeFound = true;
             }
-
             nLastCoinStakeSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
             nLastCoinStakeSearchTime = nSearchTime;
         }
 
         if (!fStakeFound)
             return nullptr;
-    }
-    else
-    {
 
-    if (nHeight <= Params().GetConsensus().nFirstPoSBlock) {
-        coinbaseTx.vout[0].nValue = nFees + blockReward;
     } else {
-            CScript payee1, payee2;
-            {
-                    int nCount = 0;
-                    masternode_info_t mnInfo;
 
-                    // small node
-                    if(!mnodeman.GetNextMasternodeInQueueForPayment(pindexPrev->nHeight + 1, true, nCount, mnInfo, 0))
-                        payee1 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
-                    else
-                        LogPrint(BCLog::MNPAYMENTS, "CreateNewBlock: Failed to detect small masternode to pay\n");
-
-                    // large node
-                    if(!mnodeman.GetNextMasternodeInQueueForPayment(pindexPrev->nHeight + 1, true, nCount, mnInfo, 1))
-                        payee2 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
-                    else
-                        LogPrint(BCLog::MNPAYMENTS, "CreateNewBlock: Failed to detect large masternode to pay\n");
-            }
-
-            CAmount masternodePaymentSmall = GetMasternodePayment(0, blockReward);
-            CAmount masternodePaymentLarge = GetMasternodePayment(1, blockReward);
-
-            coinbaseTx.vout.resize(3);
-            coinbaseTx.vout[2].scriptPubKey = payee2;
-            coinbaseTx.vout[2].nValue = masternodePaymentLarge;
-            coinbaseTx.vout[1].scriptPubKey = payee1;
-            coinbaseTx.vout[1].nValue = masternodePaymentSmall;
-            coinbaseTx.vout[0].nValue = (blockReward - masternodePaymentLarge) - masternodePaymentSmall;
-       }
+        if (nHeight <= Params().GetConsensus().nFirstPoSBlock) {
+            coinbaseTx.vout[0].nValue = refBlockReward;
+        } else {
+            coinbaseTx.vout[0].nValue = blockReward;
+            FillBlockPayments(coinbaseTx, nHeight, refBlockReward, pblock->txoutMasternode, pblock->voutSuperblock, false);
+        }
     }
 
     int nPackagesSelected = 0;
@@ -247,8 +222,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(CWallet *wallet, 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
-
-    LogPrintf("CreateNewBlock(): block weight: %u txs: %u fees: %ld sigops %d\n", GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
 
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
@@ -265,8 +238,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(CWallet *wallet, 
     int64_t nTime2 = GetTimeMicros();
 
     LogPrint(BCLog::BENCH, "CreateNewBlock() packages: %.2fms (%d packages, %d updated descendants), validity: %.2fms (total %.2fms)\n", 0.001 * (nTime1 - nTimeStart), nPackagesSelected, nDescendantsUpdated, 0.001 * (nTime2 - nTime1), 0.001 * (nTime2 - nTimeStart));
-
-    LogPrintf("BlockCreated: %s\n", pblock->ToString());
 
     return std::move(pblocktemplate);
 }
@@ -556,6 +527,7 @@ static bool ProcessBlockFound(const std::shared_ptr<const CBlock> &pblock, const
     // GetMainSignals().BlockFound(pblock->GetHash());
 
     // Process this block the same as if we had received it from another node
+    LOCK(cs_main);
     if (!ProcessNewBlock(chainparams, pblock, true, nullptr))
         return error("ProcessBlockFound -- ProcessNewBlock() failed, block not accepted");
 
@@ -564,7 +536,6 @@ static bool ProcessBlockFound(const std::shared_ptr<const CBlock> &pblock, const
 
 void static BitcoinMiner(const CChainParams& chainparams, CConnman& connman, CWallet* pwallet, bool fProofOfStake)
 {
-    LogPrintf("5gminer -- started\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("5g-miner");
 
@@ -576,7 +547,7 @@ void static BitcoinMiner(const CChainParams& chainparams, CConnman& connman, CWa
     while (true) {
         try {
 
-            MilliSleep(1000);
+            MilliSleep(25);
 
             // Throw an error if no script was provided.  This can happen
             // due to some internal error but also if the keypool is empty.

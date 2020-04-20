@@ -23,8 +23,8 @@ static const int MNPAYMENTS_SIGNATURES_TOTAL            = 10;
 //  vote for masternode and be elected as a payment winner
 // V1 - Last protocol version before update
 // V2 - Newest protocol version
-static const int MIN_MASTERNODE_PAYMENT_PROTO_VERSION_1 = 70206;
-static const int MIN_MASTERNODE_PAYMENT_PROTO_VERSION_2 = 70208;
+static const int MIN_MASTERNODE_PAYMENT_PROTO_VERSION_1 = PROTOCOL_VERSION;
+static const int MIN_MASTERNODE_PAYMENT_PROTO_VERSION_2 = PROTOCOL_VERSION;
 
 extern CCriticalSection cs_vecPayees;
 extern CCriticalSection cs_mapMasternodeBlocks;
@@ -35,7 +35,7 @@ extern CMasternodePayments mnpayments;
 /// TODO: all 4 functions do not belong here really, they should be refactored/moved somewhere (main.cpp ?)
 bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount expectedReward, CAmount actualReward, std::string &strErrorRet);
 bool IsBlockPayeeValid(const CTransactionRef &txNew, int nBlockHeight, CAmount expectedReward, CAmount actualReward);
-void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet);
+void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet, bool fProofOfStake);
 void AdjustMasternodePayment(CMutableTransaction &tx, const CTxOut& txoutMasternodePayment);
 std::string GetRequiredPaymentsString(int nBlockHeight);
 
@@ -212,7 +212,7 @@ public:
     int GetMinMasternodePaymentsProto();
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
     std::string GetRequiredPaymentsString(int nBlockHeight);
-    void FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet);
+    void FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet, bool fProofOfStake);
     std::string ToString() const;
 
     int GetBlockCount() { return mapMasternodeBlocks.size(); }

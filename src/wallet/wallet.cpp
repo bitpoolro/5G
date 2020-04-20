@@ -2361,6 +2361,9 @@ static bool IsCorrectType(CAmount nAmount, AvailableCoinsType nCoinType)
     } else if(nCoinType == ONLY_MASTERNODE_COLLATERAL) {
         for(int i=0; i<Params().CollateralLevels(); i++) {
             if(nAmount == (Params().ValidCollateralAmounts()[i] * COIN)) {
+        		LogPrintf("IsCorrectType() - wallet/wallet.cpp\n");
+        		LogPrintf("nAmount == %llu\n", nAmount);
+        		LogPrintf("Collat  == %llu\n", Params().ValidCollateralAmounts()[i]);
                 found = true;
                 break;
             }
@@ -2675,6 +2678,12 @@ bool CWallet::SelectStakeCoins(StakeCoinsSet &setCoins, CAmount nTargetAmount, b
             continue;
 
         if(rejectCache.count(scriptPubKeyCoin))
+            continue;
+
+        if (out.nDepth < Params().GetConsensus().nMinStakeHistory)
+            continue;
+
+        if (out.tx->tx->vout[out.i].nValue < Params().GetConsensus().nMinStakeAmount)
             continue;
 
         nAmountSelected += out.tx->tx->vout[out.i].nValue;
@@ -3300,7 +3309,7 @@ bool CWallet::CreateCoinStakeKernel(CScript &kernelScript, const CScript &stakeS
                                     const COutPoint &prevout, unsigned int &nTimeTx, bool fPrintProofOfStake) const
 {
     unsigned int nTryTime = 0;
-    uint256 hashProofOfStake;
+    uint256 hashProofOfStake = uint256();
 
     if (blockFrom.GetBlockTime() + Params().GetConsensus().nStakeMinAge + nHashDrift > nTimeTx) // Min age requirement
         return false;
@@ -3325,10 +3334,7 @@ bool CWallet::CreateCoinStakeKernel(CScript &kernelScript, const CScript &stakeS
     return false;
 }
 
-void CWallet::FillCoinStakePayments(CMutableTransaction &transaction,
-                                    const CScript &scriptPubKeyOut,
-                                    const COutPoint &stakePrevout,
-                                    CAmount blockReward) const
+void CWallet::FillCoinStakePayments(CMutableTransaction &transaction, const CScript &scriptPubKeyOut, const COutPoint &stakePrevout, CAmount blockReward) const
 {
     const CWalletTx *walletTx = GetWalletTx(stakePrevout.hash);
     CTxOut prevTxOut = walletTx->tx->vout[stakePrevout.n];
@@ -3459,10 +3465,6 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore,
     CTxOut txoutMasternode;
     std::vector<CTxOut> voutSuperblock;
     int nHeight = chainActive.Tip()->nHeight + 1;
-    FillBlockPayments(txNew, nHeight, blockReward, txoutMasternode, voutSuperblock);
-    AdjustMasternodePayment(txNew, txoutMasternode);
-    LogPrintf("CreateCoinStake -- nBlockHeight %d blockReward %lld txoutMasternode %s txNew %s",
-              nHeight, blockReward, txoutMasternode.ToString(), txNew.ToString());
     nLastStakeSetUpdate = 0; //this will trigger stake set to repopulate next round
     return true;
 }

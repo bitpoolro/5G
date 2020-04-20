@@ -129,6 +129,9 @@ CMasternode::CollateralStatus CMasternode::CheckCollateral(const COutPoint& outp
     bool fCollateralAmountValid = false;
     for(int i=0; i<Params().CollateralLevels(); i++) {
         if(coin.out.nValue == (Params().ValidCollateralAmounts()[i] * COIN)) {
+           LogPrintf("IsCorrectType() - masternode.cpp L132\n");
+           LogPrintf("nAmount == %llu\n", coin.out.nValue);
+           LogPrintf("Collat  == %llu\n", Params().ValidCollateralAmounts()[i]);
            fCollateralAmountValid = true;
            break;
         }
@@ -285,6 +288,10 @@ bool CMasternode::IsInputAssociatedWithPubkey() const
         for(const CTxOut &out : tx->vout) {
             for(int i=0; i<Params().CollateralLevels(); i++) {
                 if(out.nValue == (Params().ValidCollateralAmounts()[i] * COIN) && out.scriptPubKey == payee) {
+                   LogPrintf("IsInputAssociatedWithPubkey() - masternode.cpp L291\n");
+                   LogPrintf("payee   == %s\n", payee.ToString().c_str());
+                   LogPrintf("nAmount == %llu\n", out.nValue);
+                   LogPrintf("Collat  == %llu\n", Params().ValidCollateralAmounts()[i]);
                    return true;
                 }
             }
@@ -374,7 +381,7 @@ void CMasternode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScan
                 }
         }
 
-        if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
+        if (BlockReading->pprev == nullptr) { assert(BlockReading); break; }
         BlockReading = BlockReading->pprev;
     }
 
@@ -599,7 +606,7 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
         }
 
         if (err == COLLATERAL_INVALID_AMOUNT) {
-            LogPrint(BCLog::MASTERNODE, "CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO should have 1000 5G, masternode=%s\n", vin.prevout.ToString());
+            LogPrint(BCLog::MASTERNODE, "CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO is not correct for masternode=%s\n", vin.prevout.ToString());
             return false;
         }
 
@@ -790,7 +797,7 @@ bool CMasternodePing::CheckAndUpdate(CMasternode* pmn, bool fFromNewBroadcast, i
         }
     }
 
-    if (pmn == NULL) {
+    if (pmn == nullptr) {
         LogPrint(BCLog::MASTERNODE, "CMasternodePing::CheckAndUpdate -- Couldn't find Masternode entry, masternode=%s\n", vin.prevout.ToString());
         return false;
     }
@@ -877,49 +884,10 @@ void CMasternodePing::Relay(CConnman& connman)
     });
 }
 
-void CMasternode::AddGovernanceVote(uint256 nGovernanceObjectHash)
-{
-    if(mapGovernanceObjectsVotedOn.count(nGovernanceObjectHash)) {
-        mapGovernanceObjectsVotedOn[nGovernanceObjectHash]++;
-    } else {
-        mapGovernanceObjectsVotedOn.insert(std::make_pair(nGovernanceObjectHash, 1));
-    }
-}
-
-void CMasternode::RemoveGovernanceObject(uint256 nGovernanceObjectHash)
-{
-    std::map<uint256, int>::iterator it = mapGovernanceObjectsVotedOn.find(nGovernanceObjectHash);
-    if(it == mapGovernanceObjectsVotedOn.end()) {
-        return;
-    }
-    mapGovernanceObjectsVotedOn.erase(it);
-}
-
 void CMasternode::UpdateWatchdogVoteTime(uint64_t nVoteTime)
 {
     LOCK(cs);
     nTimeLastWatchdogVote = (nVoteTime == 0) ? GetAdjustedTime() : nVoteTime;
-}
-
-/**
-*   FLAG GOVERNANCE ITEMS AS DIRTY
-*
-*   - When masternode come and go on the network, we must flag the items they voted on to recalc it's cached flags
-*
-*/
-void CMasternode::FlagGovernanceItemsAsDirty()
-{
-    std::vector<uint256> vecDirty;
-    {
-        std::map<uint256, int>::iterator it = mapGovernanceObjectsVotedOn.begin();
-        while(it != mapGovernanceObjectsVotedOn.end()) {
-            vecDirty.push_back(it->first);
-            ++it;
-        }
-    }
-    for(size_t i = 0; i < vecDirty.size(); ++i) {
-        mnodeman.AddDirtyGovernanceObjectHash(vecDirty[i]);
-    }
 }
 
 void CMasternodeVerification::Relay() const
@@ -930,8 +898,6 @@ void CMasternodeVerification::Relay() const
         pnode->PushInventory(inv);
     });
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 CAmount CMasternode::CheckOutPointValue(const COutPoint& outpoint)
 {
@@ -944,12 +910,18 @@ CAmount CMasternode::CheckOutPointValue(const COutPoint& outpoint)
 
 int CMasternode::RetrieveMNType()
 {
-    int mnType = 0;
     CAmount nOutPointValue = CheckOutPointValue(vin.prevout);
-    for(int i=0; i<Params().CollateralLevels(); i++)
-        if((nOutPointValue * COIN) == (Params().ValidCollateralAmounts()[i] * COIN))
-           return mnType;
-    return(Params().CollateralLevels());
+    for(int i=0; i<Params().CollateralLevels(); i++) {
+        if(nOutPointValue == (Params().ValidCollateralAmounts()[i] * COIN)) {
+           LogPrintf("RetrieveMNType() - masternode.cpp L958\n");
+           LogPrintf("nOutPointValue == %llu\n", nOutPointValue);
+           LogPrintf("Collat         == %llu\n", Params().ValidCollateralAmounts()[i]);
+           LogPrintf("mnType         == %d\n", i);
+           return i; 
+	}
+    }
+
+    LogPrintf("Exiting RetrieveMNType() via fallthrough...");
+    return -1;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////

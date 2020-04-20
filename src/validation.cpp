@@ -42,6 +42,7 @@
 #include <validationinterface.h>
 #include <warnings.h>
 #include <kernel.h>
+#include <masternodeman.h>
 #include <masternode-payments.h>
 #include <blocksigner.h>
 
@@ -227,7 +228,7 @@ uint256 g_best_block;
 int nScriptCheckThreads = 0;
 std::atomic_bool fImporting(false);
 std::atomic_bool fReindex(false);
-bool fTxIndex = false;
+bool fTxIndex = true;
 bool fHavePruned = false;
 bool fPruneMode = false;
 bool fIsBareMultisigStd = DEFAULT_PERMIT_BAREMULTISIG;
@@ -1142,15 +1143,34 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
 
 CAmount GetBlockSubsidy(int nPrevHeight, const Consensus::Params& consensusParams, bool fSuperblockPartOnly)
 {
-    return 1000 * COIN;
+    if (nPrevHeight == 0)
+        return 100000 * COIN;
+
+    int halvings = nPrevHeight / consensusParams.nSubsidyHalvingInterval;
+    // Force block reward to zero when right shift is undefined.
+    if (halvings >= 64)
+        return 0;
+
+    CAmount nSubsidy = 50 * COIN;
+    // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
+    nSubsidy >>= halvings;
+    return nSubsidy;
 }
 
 CAmount GetMasternodePayment(int mnType, CAmount blockValue)
 {
-    if(mnType == 0)
-       return blockValue * 0.05;
-    else
-       return blockValue * 0.10;
+    switch (mnType)
+    {
+        case 0: return 0.11 * blockValue;
+        case 1: return 0.22 * blockValue;
+        case 2: return 0.33 * blockValue;
+        default: return 0;
+    }
+}
+
+CAmount GetProofOfStakeReward()
+{
+    return GetBlockSubsidy(0, Params().GetConsensus(), false);
 }
 
 bool IsInitialBlockDownload()
@@ -1838,7 +1858,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
 
     // verify that the view's current state corresponds to the previous block
     uint256 hashPrevBlock = pindex->pprev == nullptr ? uint256() : pindex->pprev->GetBlockHash();
-    assert(hashPrevBlock == view.GetBestBlock());
+    if (hashPrevBlock != view.GetBestBlock()) return false;
 
     // Special case for the genesis block, skipping connection of its transactions
     // (its coinbase is unspendable)
@@ -3191,7 +3211,7 @@ static bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, 
 static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(), block.nBits, false, consensusParams))
+    if (block.nNonce && !CheckProofOfWork(block.GetPoWHash(), block.nBits, false, consensusParams))
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
 
     return true;
@@ -3418,7 +3438,7 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
     if (block.IsProofOfStake())
     {
         uint256 hash = block.GetHash();
-        if(!CheckProofOfStake(block, hashProofOfStake))
+        if(!CheckProofOfStake(block, hashProofOfStake, pindexPrev))
            return state.DoS(100, error("CheckBlock(): check proof-of-stake failed for block %s\n", hash.ToString().c_str()));
 
         if(hashProofOfStake == uint256())
@@ -3429,13 +3449,11 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
     }
 
     // Check difficulty
-    if (block.nBits != GetNextWorkRequired(pindexPrev, consensusParams, block.IsProofOfStake()))
-        return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, strprintf("incorrect difficulty: block pow=%d bits=%08x calc=%08x",
-                  block.IsProofOfWork() ? "Y" : "N", block.nBits, GetNextWorkRequired(pindexPrev, consensusParams, block.IsProofOfStake())));
-    else
-        LogPrintf("Block pow=%s bits=%08x found=%08x %s=%s\n", block.IsProofOfWork() ? "Y" : "N", GetNextWorkRequired(pindexPrev,
-                  consensusParams, block.IsProofOfStake()), block.nBits, block.IsProofOfWork() ? "powhash" : "hashproof",
-                  block.IsProofOfWork() ? block.GetPoWHash().ToString().c_str() : hashProofOfStake.ToString().c_str());
+    if (block.nNonce) {
+        if (block.nBits != GetNextWorkRequired(pindexPrev, consensusParams, block.IsProofOfStake()))
+            return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, strprintf("incorrect difficulty: block pow=%d bits=%08x calc=%08x",
+                      block.IsProofOfWork() ? "Y" : "N", block.nBits, GetNextWorkRequired(pindexPrev, consensusParams, block.IsProofOfStake())));
+    }
 
     // Start enforcing BIP113 (Median Time Past) using versionbits logic.
     int nLockTimeFlags = 0;
@@ -3495,10 +3513,6 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
 
     if(block.IsProofOfStake())
     {
-        bool isWitnessBlock = GetWitnessCommitmentIndex(block) != -1;
-        if(!isWitnessBlock && block.vtx[0]->vout.size() != 1)
-            return state.DoS(100, error("CheckBlock() : wrong number of outputs in coinbase for proof-of-stake block"));
-
         // Coinbase output should be empty if proof-of-stake block
         if (!block.vtx[0]->vout[0].IsEmpty())
             return state.DoS(100, error("CheckBlock() : coinbase output not empty for proof-of-stake block"));
@@ -3544,7 +3558,7 @@ bool CChainState::AcceptBlockHeader(const CBlockHeader& block, CValidationState&
             return true;
         }
 
-        if (!CheckBlockHeader(block, state, chainparams.GetConsensus(), false))
+        if (!CheckBlockHeader(block, state, chainparams.GetConsensus(), (block.nNonce > 0)))
             return error("%s: Consensus::CheckBlockHeader: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
 
         // Get prev block index
