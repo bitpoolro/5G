@@ -11,6 +11,8 @@
 #include <map>
 #include <string>
 
+typedef int64_t CAmount;
+
 namespace Consensus {
 
 enum DeploymentPos
@@ -48,6 +50,7 @@ struct BIP9Deployment {
  */
 struct Params {
     uint256 hashGenesisBlock;
+    CAmount nSubsidyHalvingInterval;
     int nMasternodePaymentsIncreaseBlock;
     int nMasternodePaymentsIncreasePeriod;
     int nInstantSendKeepLock;
@@ -95,6 +98,8 @@ struct Params {
     int nStakeMaxAge;
     int64_t nModifierInterval;
     int nCoinbaseMaturity;
+    CAmount nMinStakeAmount;
+    int nMinStakeHistory;
 };
 } // namespace Consensus
 

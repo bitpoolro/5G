@@ -223,7 +223,6 @@ void CMasternodeMan::CheckAndRemove(CConnman& connman)
                 mWeAskedForMasternodeListEntry.erase(it->first);
 
                 // and finally remove it from the list
-                it->second.FlagGovernanceItemsAsDirty();
                 mapMasternodes.erase(it++);
                 fMasternodesRemoved = true;
             } else {
@@ -273,7 +272,7 @@ void CMasternodeMan::CheckAndRemove(CConnman& connman)
                     // mapSeenMasternodeBroadcast.erase(itMnbReplies->first);
                     int nDos;
                     itMnbReplies->second[0].fRecovery = true;
-                    CheckMnbAndUpdateMasternodeList(NULL, itMnbReplies->second[0], nDos, connman);
+                    CheckMnbAndUpdateMasternodeList(nullptr, itMnbReplies->second[0], nDos, connman);
                 }
                 LogPrint(BCLog::MASTERNODE, "CMasternodeMan::CheckAndRemove -- removing mnb recovery reply, masternode=%s, size=%d\n", itMnbReplies->second[0].vin.prevout.ToString(), (int)itMnbReplies->second.size());
                 mMnbRecoveryGoodReplies.erase(itMnbReplies++);
@@ -459,7 +458,7 @@ CMasternode* CMasternodeMan::Find(const COutPoint &outpoint)
 {
     LOCK(cs);
     auto it = mapMasternodes.find(outpoint);
-    return it == mapMasternodes.end() ? NULL : &(it->second);
+    return it == mapMasternodes.end() ? nullptr : &(it->second);
 }
 
 bool CMasternodeMan::Get(const COutPoint& outpoint, CMasternode& masternodeRet)
@@ -472,6 +471,16 @@ bool CMasternodeMan::Get(const COutPoint& outpoint, CMasternode& masternodeRet)
     }
 
     masternodeRet = it->second;
+    return true;
+}
+
+bool CMasternodeMan::IsMasternodeCollateral(const COutPoint& outpoint)
+{
+    LOCK(cs);
+    auto it = mapMasternodes.find(outpoint);
+    if (it == mapMasternodes.end()) {
+        return false;
+    }
     return true;
 }
 
@@ -584,7 +593,7 @@ bool CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, bool f
     int nTenthNetwork = nMnCount/10;
     int nCountTenth = 0;
     arith_uint256 nHighest = 0;
-    const CMasternode *pBestMasternode = NULL;
+    const CMasternode *pBestMasternode = nullptr;
     for (const auto& s : vecMasternodeLastPaid) {
         arith_uint256 nScore = s.second->CalculateScore(blockHash);
         if(nScore > nHighest /*&& s.second->RetrieveMNType() == mnType*/){
@@ -840,7 +849,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
         if(nDos > 0) {
             // if anything significant failed, mark that node
             Misbehaving(pfrom->GetId(), nDos);
-        } else if(pmn != NULL) {
+        } else if(pmn != nullptr) {
             // nothing significant failed, mn is a known one too
             return;
         }
@@ -1029,8 +1038,8 @@ void CMasternodeMan::CheckSameAddr()
     {
         LOCK(cs);
 
-        CMasternode* pprevMasternode = NULL;
-        CMasternode* pverifiedMasternode = NULL;
+        CMasternode* pprevMasternode = nullptr;
+        CMasternode* pverifiedMasternode = nullptr;
 
         for (auto& mnpair : mapMasternodes) {
             vSortedByAddr.push_back(&mnpair.second);
@@ -1044,7 +1053,7 @@ void CMasternodeMan::CheckSameAddr()
             // initial step
             if(!pprevMasternode) {
                 pprevMasternode = pmn;
-                pverifiedMasternode = pmn->IsPoSeVerified() ? pmn : NULL;
+                pverifiedMasternode = pmn->IsPoSeVerified() ? pmn : nullptr;
                 continue;
             }
             // second+ step
@@ -1059,7 +1068,7 @@ void CMasternodeMan::CheckSameAddr()
                     pverifiedMasternode = pmn;
                 }
             } else {
-                pverifiedMasternode = pmn->IsPoSeVerified() ? pmn : NULL;
+                pverifiedMasternode = pmn->IsPoSeVerified() ? pmn : nullptr;
             }
             pprevMasternode = pmn;
         }
@@ -1081,7 +1090,7 @@ bool CMasternodeMan::SendVerifyRequest(const CAddress& addr, const std::vector<C
     }
 
     CNode* pnode = connman.OpenMasternodeConnection(addr);
-    if(pnode == NULL) {
+    if(pnode == nullptr) {
         LogPrintf("CMasternodeMan::SendVerifyRequest -- can't connect to node to verify it, addr=%s\n", addr.ToString());
         return false;
     }
@@ -1180,7 +1189,7 @@ void CMasternodeMan::ProcessVerifyReply(CNode* pnode, CMasternodeVerification& m
     {
         LOCK(cs);
 
-        CMasternode* prealMasternode = NULL;
+        CMasternode* prealMasternode = nullptr;
         std::vector<CMasternode*> vpMasternodesToBan;
         std::string strMessage1 = strprintf("%s%d%s", pnode->addr.ToString(), mnv.nonce, blockHash.ToString());
         for (auto& mnpair : mapMasternodes) {
@@ -1371,7 +1380,7 @@ void CMasternodeMan::UpdateMasternodeList(CMasternodeBroadcast mnb, CConnman& co
     LogPrintf("CMasternodeMan::UpdateMasternodeList -- masternode=%s  addr=%s\n", mnb.vin.prevout.ToString(), mnb.addr.ToString());
 
     CMasternode* pmn = Find(mnb.vin.prevout);
-    if(pmn == NULL) {
+    if(pmn == nullptr) {
         if(Add(mnb)) {
             masternodeSync.BumpAssetLastTime("CMasternodeMan::UpdateMasternodeList - new");
         }
@@ -1515,25 +1524,6 @@ bool CMasternodeMan::IsWatchdogActive()
     LOCK(cs);
     // Check if any masternodes have voted recently, otherwise return false
     return (GetTime() - nLastWatchdogVoteTime) <= MASTERNODE_WATCHDOG_MAX_SECONDS;
-}
-
-bool CMasternodeMan::AddGovernanceVote(const COutPoint& outpoint, uint256 nGovernanceObjectHash)
-{
-    LOCK(cs);
-    CMasternode* pmn = Find(outpoint);
-    if(!pmn) {
-        return false;
-    }
-    pmn->AddGovernanceVote(nGovernanceObjectHash);
-    return true;
-}
-
-void CMasternodeMan::RemoveGovernanceObject(uint256 nGovernanceObjectHash)
-{
-    LOCK(cs);
-    for(auto& mnpair : mapMasternodes) {
-        mnpair.second.RemoveGovernanceObject(nGovernanceObjectHash);
-    }
 }
 
 void CMasternodeMan::CheckMasternode(const CPubKey& pubKeyMasternode, bool fForce)

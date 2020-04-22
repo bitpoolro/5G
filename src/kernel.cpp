@@ -51,10 +51,11 @@ static bool GetLastStakeModifier(const CBlockIndex* pindex, uint64_t& nStakeModi
         return error("GetLastStakeModifier: null pindex");
     while (pindex && pindex->pprev && !pindex->GeneratedStakeModifier())
         pindex = pindex->pprev;
-    if (!pindex->GeneratedStakeModifier())
-        return error("GetLastStakeModifier: no generation at genesis block");
-    nStakeModifier = pindex->nStakeModifier;
-    nModifierTime = pindex->GetBlockTime();
+    if (pindex->GeneratedStakeModifier()) {
+        nStakeModifier = pindex->nStakeModifier;
+        nModifierTime = pindex->GetBlockTime();
+        return true;
+    }
     return true;
 }
 
@@ -234,21 +235,10 @@ static bool GetKernelStakeModifierV03(uint256 hashBlockFrom, unsigned int nTimeT
     CBlockIndex* pindexNext = chainActive[pindexFrom->nHeight + 1];
 
     // loop to find the stake modifier later by a selection interval
-    while (nStakeModifierTime < pindexFrom->GetBlockTime() + nStakeModifierSelectionInterval) {
+    while (nStakeModifierTime < pindexFrom->GetBlockTime() + nStakeModifierSelectionInterval)
+    {
         if (!pindexNext) {
-            // Should never happen
-            if(Params().NetworkIDString() == CBaseChainParams::TESTNET)
-            {
-                nStakeModifierHeight = pindexFrom->nHeight;
-                nStakeModifierTime = pindexFrom->GetBlockTime();
-                if(pindex->GeneratedStakeModifier())
-                    nStakeModifier = pindex->nStakeModifier;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return false;
         }
 
         pindex = pindexNext;
@@ -274,6 +264,26 @@ uint256 stakeHash(unsigned int nTimeTx, CDataStream ss, unsigned int prevoutInde
     return Hash(ss.begin(), ss.end());
 }
 
+bool HasStakeMinDepth(int contextHeight, int utxoFromBlockHeight, int &nDepthFound)
+{
+    const int minHistoryRequired = Params().GetConsensus().nMinStakeHistory;
+    nDepthFound = contextHeight - utxoFromBlockHeight;
+    return (nDepthFound >= minHistoryRequired);
+}
+
+int GetLastHeight(uint256 txHash)
+{
+    uint256 hashBlock;
+    CTransactionRef stakeInput;
+
+    if (!GetTransaction(txHash, stakeInput, Params().GetConsensus(), hashBlock, true))
+        return 0;
+    if (hashBlock == uint256())
+        return 0;
+
+    return mapBlockIndex[hashBlock]->nHeight;
+}
+
 bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned int nTxPrevOffset, const CTransactionRef& txPrev, const COutPoint& prevout, unsigned int nTimeTx, uint256& hashProofOfStake, bool fMinting, bool fValidate)
 {
     auto txPrevTime = blockFrom.GetBlockTime();
@@ -295,6 +305,10 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
     int64_t nTimeWeight = std::min<int64_t>(nTimeTx - txPrevTime, nStakeMaxAge - nStakeMinAge);
     arith_uint256 bnCoinDayWeight = nValueIn * nTimeWeight / COIN / 200;
 
+    const CAmount minStakeAmount = Params().GetConsensus().nMinStakeAmount;
+    if (nValueIn < minStakeAmount)
+        return error("CheckStakeKernelHash() : min stake amount not met");
+
     // Calculate hash
     CDataStream ss(SER_GETHASH, 0);
     uint64_t nStakeModifier = 0;
@@ -306,6 +320,9 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
     ss << nStakeModifier;
     ss << nTimeBlockFrom << nTxPrevOffset << txPrevTime << prevout.n << nTimeTx;
     hashProofOfStake = Hash(ss.begin(), ss.end());
+
+    if (hashProofOfStake == uint256())
+        return false;
 
     // Now check if proof-of-stake hash meets target protocol
     if (UintToArith256(hashProofOfStake) > bnCoinDayWeight * bnTargetPerCoinDay)
@@ -341,7 +358,7 @@ bool CheckKernelScript(CScript scriptVin, CScript scriptVout)
 }
 
 // Check kernel hash target and coinstake signature
-bool CheckProofOfStake(const CBlock &block, uint256& hashProofOfStake)
+bool CheckProofOfStake(const CBlock &block, uint256& hashProofOfStake, const CBlockIndex* pindexPrev)
 {
     const CTransactionRef &tx = block.vtx[1];
     if (!tx->IsCoinStake())
@@ -366,6 +383,17 @@ bool CheckProofOfStake(const CBlock &block, uint256& hashProofOfStake)
         pindex = it->second;
     else
         return error("CheckProofOfStake() : read block failed");
+
+    //! test depth
+    const int nPreviousBlockHeight = pindexPrev->nHeight;
+    const int nBlockFromHeight = GetLastHeight(txin.prevout.hash);
+
+    if (nBlockFromHeight == 0)
+        return false;
+
+    int nDepthFound = 0;
+    if (!HasStakeMinDepth(nPreviousBlockHeight+1, nBlockFromHeight, nDepthFound))
+        return error("CheckProofOfStake() : min stake depth not met (need: %d found: %d)", Params().GetConsensus().nMinStakeHistory, nDepthFound);
 
     // Read block header
     CBlock blockprev;

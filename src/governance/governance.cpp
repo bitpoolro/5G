@@ -512,7 +512,6 @@ void CGovernanceManager::UpdateCachesAndClean()
         if((pObj->IsSetCachedDelete() || pObj->IsSetExpired()) &&
            (nTimeSinceDeletion >= GOVERNANCE_DELETION_DELAY)) {
             LogPrintf("CGovernanceManager::UpdateCachesAndClean -- erase obj %s\n", (*it).first.ToString());
-            mnodeman.RemoveGovernanceObject(pObj->GetHash());
 
             // Remove vote references
             const object_ref_cache_t::list_t& listItems = mapVoteToObject.GetItemList();

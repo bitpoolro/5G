@@ -73,7 +73,7 @@ class CMainParams : public CChainParams {
 public:
     CMainParams() {
         strNetworkID = "main";
-
+        consensus.nSubsidyHalvingInterval = 210000;
         consensus.nFirstPoSBlock = 50;
         consensus.nInstantSendKeepLock = 24;
         consensus.nBudgetPaymentsStartBlock = 0;
@@ -103,6 +103,8 @@ public:
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1080;
         consensus.nMinerConfirmationWindow = 1440;
+        consensus.nMinStakeAmount = 5 * COIN;
+        consensus.nMinStakeHistory = 10;
 
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
@@ -133,27 +135,12 @@ public:
         pchMessageStart[1] = 0x4d;
         pchMessageStart[2] = 0xe4;
         pchMessageStart[3] = 0x4f;
-        nDefaultPort = 8333;
+        nDefaultPort = 55555;
         nPruneAfterHeight = 100000;
         nMaxReorganizationDepth = 100;
 
-	////////////////////////////////////////////////////////////////////////////////
-	uint32_t nTime = 1556915433;
-	uint32_t nNonce = 34897;
-
-        if (nNonce == 0) {
-	  while (UintToArith256(genesis.GetPoWHash()) > UintToArith256(consensus.powLimit)) {
-	    nNonce++;
-	    genesis = CreateGenesisBlock(nTime, nNonce, 0x1f00ffff, 1, 0 * COIN);
-	    if (nNonce % 128 == 0)
-	      printf("\rnonce %08x", nNonce);
-	  }
-        }
-	////////////////////////////////////////////////////////////////////////////////
-
-        genesis = CreateGenesisBlock(nTime, nNonce, 0x1f00ffff, 1, 0 * COIN);
+	genesis = CreateGenesisBlock(1587436371, 95104, 0x1f00ffff, 1, 0 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
-        // assert(consensus.hashGenesisBlock == uint256S(""));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,70);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,132);
@@ -168,21 +155,16 @@ public:
         fDefaultConsistencyChecks = false;
         fRequireStandard = true;
         fMineBlocksOnDemand = false;
-        nCollateralLevels = { 1000, 2500, 5000 };
+        nCollateralLevels = { 5000, 15000, 30000 };
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 60*60;
-        strSporkPubKey = "";
+        strSporkPubKey = "03e77f3e40f0db570e17f3c0dde56f8cb72291f4fdfe84452d54df12334d708852";
+        strSporkPubAddr = "76a9149d4e5cf2e577f9246a3029ade4e480432f67749988ac";
 
         checkpointData = {
-            {
-                { 0, uint256S("") },
-            }
         };
 
         chainTxData = ChainTxData{
-            0,
-            1,
-            1.0
         };
 
         /* disable fallback fee on mainnet */

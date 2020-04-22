@@ -38,7 +38,7 @@ bool CheckStake(unsigned int nBits, const CBlock blockFrom, const CTransaction t
 
 // Check kernel hash target and coinstake signature
 // Sets hashProofOfStake on success return
-bool CheckProofOfStake(const CBlock &block, uint256& hashProofOfStake);
+bool CheckProofOfStake(const CBlock &block, uint256& hashProofOfStake, const CBlockIndex* pindexPrev);
 
 // Get stake modifier checksum
 unsigned int GetStakeModifierChecksum(const CBlockIndex* pindex);

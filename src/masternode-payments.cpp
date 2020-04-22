@@ -54,94 +54,10 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount expectedRe
 
     bool isBlockRewardValueMet = (actualReward <= expectedReward);
     LogPrint(BCLog::MNPAYMENTS, "actualReward %lld <= blockReward %lld\n", actualReward, expectedReward);
-
-    // we are still using budgets, but we have no data about them anymore,
-    // all we know is predefined budget cycle and window
-
-    const Consensus::Params& consensusParams = Params().GetConsensus();
-
-    if(nBlockHeight < consensusParams.nSuperblockStartBlock) {
-        int nOffset = nBlockHeight % consensusParams.nBudgetPaymentsCycleBlocks;
-        if(nBlockHeight >= consensusParams.nBudgetPaymentsStartBlock &&
-                nOffset < consensusParams.nBudgetPaymentsWindowBlocks) {
-            // NOTE: make sure SPORK_13_OLD_SUPERBLOCK_FLAG is disabled when 12.1 starts to go live
-            if(masternodeSync.IsSynced() && !sporkManager.IsSporkActive(Spork::SPORK_13_OLD_SUPERBLOCK_FLAG)) {
-                // no budget blocks should be accepted here, if SPORK_13_OLD_SUPERBLOCK_FLAG is disabled
-                LogPrint(BCLog::GOBJECT, "IsBlockValueValid -- Client synced but budget spork is disabled, checking block value against block reward\n");
-                if(!isBlockRewardValueMet) {
-                    strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, budgets are disabled",
-                                            nBlockHeight, actualReward, expectedReward);
-                }
-                return isBlockRewardValueMet;
-            }
-            LogPrint(BCLog::GOBJECT, "IsBlockValueValid -- WARNING: Skipping budget block value checks, accepting block\n");
-            // TODO: reprocess blocks to make sure they are legit?
-            return true;
-        }
-        // LogPrint(BCLog::GOBJECT, "IsBlockValueValid -- Block is not in budget cycle window, checking block value against block reward\n");
-        if(!isBlockRewardValueMet) {
-            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, block is not in budget cycle window",
-                                    nBlockHeight, actualReward, expectedReward);
-        }
-        return isBlockRewardValueMet;
+    if(!isBlockRewardValueMet) {
+        strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward",
+                                nBlockHeight, actualReward, expectedReward);
     }
-
-    // superblocks started
-
-    CAmount nSuperblockMaxValue =  expectedReward + CSuperblock::GetPaymentsLimit(nBlockHeight);
-    bool isSuperblockMaxValueMet = (actualReward <= nSuperblockMaxValue);
-
-    LogPrint(BCLog::GOBJECT, "actualReward %lld <= nSuperblockMaxValue %lld\n", actualReward, nSuperblockMaxValue);
-
-    if(!masternodeSync.IsSynced()) {
-        // not enough data but at least it must NOT exceed superblock max value
-        if(CSuperblock::IsValidBlockHeight(nBlockHeight)) {
-            LogPrint(BCLog::MNPAYMENTS, "IsBlockPayeeValid -- WARNING: Client not synced, checking superblock max bounds only\n");
-            if(!isSuperblockMaxValueMet) {
-                strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded superblock max value",
-                                        nBlockHeight, actualReward, nSuperblockMaxValue);
-            }
-            return isSuperblockMaxValueMet;
-        }
-        if(!isBlockRewardValueMet) {
-            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, only regular blocks are allowed at this height",
-                                    nBlockHeight, actualReward, expectedReward);
-        }
-        // it MUST be a regular block otherwise
-        return isBlockRewardValueMet;
-    }
-
-    // we are synced, let's try to check as much data as we can
-
-    if(sporkManager.IsSporkActive(Spork::SPORK_9_SUPERBLOCKS_ENABLED)) {
-        if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
-            if(CSuperblockManager::IsValid(coinbaseTransaction, nBlockHeight, expectedReward, actualReward)) {
-                LogPrint(BCLog::GOBJECT, "IsBlockValueValid -- Valid superblock at height %d: %s", nBlockHeight, coinbaseTransaction->ToString());
-                // all checks are done in CSuperblock::IsValid, nothing to do here
-                return true;
-            }
-
-            // triggered but invalid? that's weird
-            LogPrintf("IsBlockValueValid -- ERROR: Invalid superblock detected at height %d: %s", nBlockHeight, coinbaseTransaction->ToString());
-            // should NOT allow invalid superblocks, when superblocks are enabled
-            strErrorRet = strprintf("invalid superblock detected at height %d", nBlockHeight);
-            return false;
-        }
-        LogPrint(BCLog::GOBJECT, "IsBlockValueValid -- No triggered superblock detected at height %d\n", nBlockHeight);
-        if(!isBlockRewardValueMet) {
-            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, no triggered superblock detected",
-                                    nBlockHeight, actualReward, expectedReward);
-        }
-    } else {
-        // should NOT allow superblocks at all, when superblocks are disabled
-        LogPrint(BCLog::GOBJECT, "IsBlockValueValid -- Superblocks are disabled, no superblocks allowed\n");
-        if(!isBlockRewardValueMet) {
-            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, superblocks are disabled",
-                                    nBlockHeight, actualReward, expectedReward);
-        }
-    }
-
-    // it MUST be a regular block
     return isBlockRewardValueMet;
 }
 
@@ -223,11 +139,9 @@ bool IsBlockPayeeValid(const CTransactionRef& txNew, int nBlockHeight, CAmount e
     return true;
 }
 
-void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet)
+void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet, bool fProofOfStake)
 {
-
-    // FILL BLOCK PAYEE WITH MASTERNODE PAYMENT OTHERWISE
-    mnpayments.FillBlockPayee(txNew, nBlockHeight, blockReward, txoutMasternodeRet);
+    mnpayments.FillBlockPayee(txNew, nBlockHeight, blockReward, txoutMasternodeRet, fProofOfStake);
     LogPrint(BCLog::MNPAYMENTS, "FillBlockPayments -- nBlockHeight %d blockReward %lld txoutMasternodeRet %s txNew %s",
                             nBlockHeight, blockReward, txoutMasternodeRet.ToString(), txNew.ToString());
 }
@@ -269,37 +183,71 @@ bool CMasternodePayments::CanVote(COutPoint outMasternode, int nBlockHeight)
 *   Fill Masternode ONLY payment block
 */
 
-void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet)
+void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet, bool fProofOfStake)
 {
-    // make sure it's not filled yet
-    txoutMasternodeRet = CTxOut();
+    //! get failover address
+    CScript sporkFailover;
+    sporkFailover << ParseHex(Params().SporkPubAddr());
 
-    CScript payee1, payee2;
+    txoutMasternodeRet = CTxOut();
     {
         int nCount = 0;
+        CScript payee1, payee2, payee3;
         masternode_info_t mnInfo;
 
-        // small node
-        if(!mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo, 0))
+        //! set primary address
+        bool fPrimaryStatus = mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo, 0);
+        if (!fPrimaryStatus)
+            payee1 = sporkFailover;
+        else
             payee1 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
+
+        //! set secondary address
+        bool fSecondaryStatus = mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo, 1);
+        if (!fSecondaryStatus)
+            payee2 = sporkFailover;
         else
-            LogPrint(BCLog::MNPAYMENTS, "CreateNewBlock: Failed to detect small masternode to pay\n");
-
-        nCount++;
-
-        // large node
-        if(!mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo, 1))
             payee2 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
-        else
-            LogPrint(BCLog::MNPAYMENTS, "CreateNewBlock: Failed to detect large masternode to pay\n");
-    }
 
-    CAmount masternodePaymentSmall = GetMasternodePayment(0, blockReward);
-    CAmount masternodePaymentLarge = GetMasternodePayment(1, blockReward);
-    txNew.vout[1].nValue -= GetMasternodePayment(0, blockReward);
-    txNew.vout.push_back(CTxOut(masternodePaymentSmall, payee1));
-    txNew.vout[1].nValue -= GetMasternodePayment(1, blockReward);
-    txNew.vout.push_back(CTxOut(masternodePaymentLarge, payee2));
+        //! set tiertiary address
+        bool fTertiaryStatus = mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo, 2);
+        if (!fTertiaryStatus)
+            payee3 = sporkFailover;
+        else
+            payee3 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
+
+        //! in error scenario
+        if (!fPrimaryStatus || !fSecondaryStatus || !fTertiaryStatus)
+           LogPrint(BCLog::MNPAYMENTS, "%s: Failed to detect one or more masternodes to pay\n", __func__);
+        else
+           LogPrint(BCLog::MNPAYMENTS, "%s: Masternode payments constructed successfully\n", __func__);
+
+        //! split masternode payments
+        CAmount masternodePaymentPrimary = GetMasternodePayment(0, blockReward);
+        CAmount masternodePaymentSecondary = GetMasternodePayment(1, blockReward);
+        CAmount masternodePaymentTertiary = GetMasternodePayment(2, blockReward);
+
+        //! see if the stake was split before it got here...
+        int fCoinSplitIndex = 1;
+        LogPrintf("%s - coinstake has %d outputs before masternode\n", __func__, txNew.vout.size());
+        if (txNew.vout.size() == 3) {
+            //! ...and see which was the bigger half
+            if (txNew.vout[2].nValue > txNew.vout[1].nValue)
+                fCoinSplitIndex = 2;
+        }
+
+        //! add tier payments with correct value
+        txNew.vout.push_back(CTxOut(masternodePaymentPrimary, payee1));
+        txNew.vout.push_back(CTxOut(masternodePaymentSecondary, payee2));
+        txNew.vout.push_back(CTxOut(masternodePaymentTertiary, payee3));
+
+        //! then correct staker payment
+        CAmount totalTierPays = masternodePaymentPrimary + masternodePaymentSecondary + masternodePaymentTertiary;
+        if (fProofOfStake)
+            txNew.vout[fCoinSplitIndex].nValue -= totalTierPays;
+        else
+            txNew.vout[0].nValue = blockReward - totalTierPays;
+    }
 }
 
 int CMasternodePayments::GetMinMasternodePaymentsProto() {
@@ -725,10 +673,14 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight, CConnman& connman)
     if(!masternodeSync.IsMasternodeListSynced()) return false;
 
     int nRank;
+    int nCount = 0;
+    masternode_info_t mnInfo;
 
-    if (!mnodeman.GetMasternodeRank(activeMasternode.outpoint, nRank, nBlockHeight - 101, GetMinMasternodePaymentsProto())) {
-        LogPrint(BCLog::MNPAYMENTS, "CMasternodePayments::ProcessBlock -- Unknown Masternode\n");
-        return false;
+    for (unsigned int i = 0; i < 3; i++ ) {
+      if (!mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo, i)) {
+          LogPrintf("CMasternodePayments::ProcessBlock -- ERROR: Failed to find masternode (level %d) to pay\n", i);
+          return false;
+      }
     }
 
     if (nRank > MNPAYMENTS_SIGNATURES_TOTAL) {
@@ -736,18 +688,15 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight, CConnman& connman)
         return false;
     }
 
-
     // LOCATE THE NEXT MASTERNODE WHICH SHOULD BE PAID
-
     LogPrintf("CMasternodePayments::ProcessBlock -- Start: nBlockHeight=%d, masternode=%s\n", nBlockHeight, activeMasternode.outpoint.ToString());
 
     // pay to the oldest MN that still had no payment but its input is old enough and it was active long enough
-    int nCount = 0;
-    masternode_info_t mnInfo;
-
-    if (!mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo, 1)) {
-        LogPrintf("CMasternodePayments::ProcessBlock -- ERROR: Failed to find masternode to pay\n");
-        return false;
+    for (unsigned int i = 0; i < 3; i++ ) {
+      if (!mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo, i)) {
+          LogPrintf("CMasternodePayments::ProcessBlock -- ERROR: Failed to find masternode (level %d) to pay\n", i);
+          return false;
+      }
     }
 
     LogPrintf("CMasternodePayments::ProcessBlock -- Masternode found by GetNextMasternodeInQueueForPayment(): %s\n", mnInfo.vin.prevout.ToString());

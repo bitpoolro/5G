@@ -13,6 +13,8 @@
 #include <init.h>
 #include <validation.h>
 #include <key_io.h>
+#include <masternode-payments.h>
+#include <masternodeman.h>
 #include <miner.h>
 #include <net.h>
 #include <policy/fees.h>
@@ -368,6 +370,16 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
             "  \"curtime\" : ttt,                  (numeric) current timestamp in seconds since epoch (Jan 1 1970 GMT)\n"
             "  \"bits\" : \"xxxxxxxx\",              (string) compressed target of next block\n"
             "  \"height\" : n                      (numeric) The height of the next block\n"
+            "  \"masternode\" : [                  (array) required masternode payments that must be included in the next block\n"
+            "      {\n"
+            "         \"payee\" : \"xxxx\",          (string) payee address\n"
+            "         \"script\" : \"xxxx\",         (string) payee scriptPubKey\n"
+            "         \"amount\": n                (numeric) required amount to pay\n"
+            "      }\n"
+            "  },\n"
+            "  \"masternode_payments_started\" :  true|false, (boolean) true, if masternode payments started\n"
+            "  \"masternode_payments_enforced\" : true|false, (boolean) true, if masternode payments are enforced\n"
+            "  \"coinbase_payload\" : \"xxxxxxxx\"    (string) coinbase transaction payload data encoded in hexadecimal\n"
             "}\n"
 
             "\nExamples:\n"
@@ -652,10 +664,12 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
         aMutable.push_back("version/force");
     }
 
+    CAmount blockReward = GetBlockSubsidy(pindexPrev->nHeight, Params().GetConsensus());
+
     result.pushKV("previousblockhash", pblock->hashPrevBlock.GetHex());
     result.pushKV("transactions", transactions);
     result.pushKV("coinbaseaux", aux);
-    result.pushKV("coinbasevalue", (int64_t)pblock->vtx[0]->vout[0].nValue);
+    result.pushKV("coinbasevalue", (int64_t)blockReward);
     result.pushKV("longpollid", chainActive.Tip()->GetBlockHash().GetHex() + i64tostr(nTransactionsUpdatedLast));
     result.pushKV("target", hashTarget.GetHex());
     result.pushKV("mintime", (int64_t)pindexPrev->GetMedianTimePast()+1);
@@ -678,39 +692,51 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
     result.pushKV("bits", strprintf("%08x", pblock->nBits));
     result.pushKV("height", (int64_t)(pindexPrev->nHeight+1));
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //! calculate mn winners
+    int nCount = 0;
+    masternode_info_t mnInfo;
+    CScript payee1, payee2, payee3;
+
+    //! get failover address
+    CScript sporkFailover;
+    sporkFailover << ParseHex(Params().SporkPubAddr());
+
+    //! set primary address
+    bool fPrimaryStatus = mnodeman.GetNextMasternodeInQueueForPayment(pindexPrev->nHeight+1, true, nCount, mnInfo, 0);
+    payee1 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
+    if (!fPrimaryStatus) payee1 = sporkFailover;
+
+    //! set secondary address
+    bool fSecondaryStatus = mnodeman.GetNextMasternodeInQueueForPayment(pindexPrev->nHeight+1, true, nCount, mnInfo, 1);
+    payee2 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
+    if (!fSecondaryStatus) payee2 = sporkFailover;
+
+    //! set tiertiary address
+    bool fTertiaryStatus = mnodeman.GetNextMasternodeInQueueForPayment(pindexPrev->nHeight+1, true, nCount, mnInfo, 2);
+    payee3 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
+    if (!fTertiaryStatus) payee3 = sporkFailover;
 
     UniValue masternodeObj(UniValue::VOBJ);
-    if(pblock->txoutMasternode != CTxOut()) {
-        CTxDestination address1;
-        ExtractDestination(pblock->txoutMasternode.scriptPubKey, address1);
-        C5GAddress address2(address1);
-        masternodeObj.push_back(Pair("payee", address2.ToString().c_str()));
-        masternodeObj.push_back(Pair("script", HexStr(pblock->txoutMasternode.scriptPubKey)));
-        masternodeObj.push_back(Pair("amount", pblock->txoutMasternode.nValue));
+    {
+        UniValue paymentSlot1(UniValue::VOBJ);
+        paymentSlot1.push_back(Pair("script", HexStr(payee1)));
+        paymentSlot1.push_back(Pair("amount", GetMasternodePayment(0, blockReward)));
+        masternodeObj.push_back(Pair("tier1", paymentSlot1));
+
+        UniValue paymentSlot2(UniValue::VOBJ);
+        paymentSlot2.push_back(Pair("script", HexStr(payee2)));
+        paymentSlot2.push_back(Pair("amount", GetMasternodePayment(1, blockReward)));
+        masternodeObj.push_back(Pair("tier2", paymentSlot2));
+
+        UniValue paymentSlot3(UniValue::VOBJ);
+        paymentSlot3.push_back(Pair("script", HexStr(payee3)));
+        paymentSlot3.push_back(Pair("amount", GetMasternodePayment(2, blockReward)));
+        masternodeObj.push_back(Pair("tier3", paymentSlot3));
     }
-    result.push_back(Pair("masternode", masternodeObj));
+
+    result.push_back(Pair("masternodes", masternodeObj));
     result.push_back(Pair("masternode_payments_started", pindexPrev->nHeight + 1 > consensusParams.nFirstPoSBlock));
     result.push_back(Pair("masternode_payments_enforced", sporkManager.IsSporkActive(Spork::SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)));
-
-    UniValue superblockObjArray(UniValue::VARR);
-    if(pblock->voutSuperblock.size()) {
-        for (const auto& txout : pblock->voutSuperblock) {
-            UniValue entry(UniValue::VOBJ);
-            CTxDestination address1;
-            ExtractDestination(txout.scriptPubKey, address1);
-            C5GAddress address2(address1);
-            entry.push_back(Pair("payee", address2.ToString().c_str()));
-            entry.push_back(Pair("script", HexStr(txout.scriptPubKey)));
-            entry.push_back(Pair("amount", txout.nValue));
-            superblockObjArray.push_back(entry);
-        }
-    }
-    result.push_back(Pair("superblock", superblockObjArray));
-    result.push_back(Pair("superblocks_started", pindexPrev->nHeight + 1 > consensusParams.nSuperblockStartBlock));
-    result.push_back(Pair("superblocks_enabled", sporkManager.IsSporkActive(Spork::SPORK_9_SUPERBLOCKS_ENABLED)));
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     if (!pblocktemplate->vchCoinbaseCommitment.empty() && fSupportsSegwit) {
         result.pushKV("default_witness_commitment", HexStr(pblocktemplate->vchCoinbaseCommitment.begin(), pblocktemplate->vchCoinbaseCommitment.end()));

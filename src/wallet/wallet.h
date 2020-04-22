@@ -708,7 +708,7 @@ private:
     bool fBroadcastTransactions = false;
 
     // Stake Settings
-    unsigned int nHashDrift = 45;
+    unsigned int nHashDrift = 180;
     unsigned int nHashInterval = 22;
     int nStakeSetUpdateTime = 300; // 5 mins
 

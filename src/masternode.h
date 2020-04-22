@@ -244,6 +244,11 @@ public:
                 nActiveStateIn == MASTERNODE_WATCHDOG_EXPIRED;
     }
 
+    static std::string GetMNLevelStr(int level)
+    {
+        return (level < 0) ? "-" : std::to_string(level + 1);
+    }
+
     bool IsValidForPayment() const;
 
     /// Is the input associated with collateral public key? (and there is 1000 5G - checking if valid masternode)
