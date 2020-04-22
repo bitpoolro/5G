@@ -163,7 +163,6 @@ void SplashScreen::showMessage(const QString &message, int alignment, const QCol
     curAlignment = alignment;
     curColor = color;
     update();
-    usleep(50000);
 }
 
 void SplashScreen::paintEvent(QPaintEvent *event)
