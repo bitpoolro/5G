@@ -220,15 +220,11 @@ public:
         return nTimeToCheckAt - lastPing.sigTime < nSeconds;
     }
 
-    //////////////////////////////////////////////////////
-    CAmount CheckOutPointValue(const COutPoint& outpoint);
-    int RetrieveMNType();
-    //////////////////////////////////////////////////////
-
+    CAmount CheckOutPointValue(const COutPoint& outpoint) const;
+    int RetrieveMNType() const;
     bool IsEnabled() const;
     bool IsPreEnabled() const { return nActiveState == MASTERNODE_PRE_ENABLED; }
     bool IsPoSeBanned() const { return nActiveState == MASTERNODE_POSE_BAN; }
-    // NOTE: this one relies on nPoSeBanScore, not on nActiveState as everything else here
     bool IsPoSeVerified() const { return nPoSeBanScore <= -MASTERNODE_POSE_BAN_MAX_SCORE; }
     bool IsExpired() const { return nActiveState == MASTERNODE_EXPIRED; }
     bool IsOutpointSpent() const { return nActiveState == MASTERNODE_OUTPOINT_SPENT; }
