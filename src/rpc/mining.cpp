@@ -719,28 +719,28 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
     if (!fTertiaryStatus) payee3 = sporkFailover;
     auto payee3addr = EncodeDestination(mnInfo.pubKeyCollateralAddress.GetID());
 
-    UniValue masternodeObj(UniValue::VOBJ);
+    UniValue masternodeObj(UniValue::VARR);
     {
         UniValue paymentSlot1(UniValue::VOBJ);
         paymentSlot1.pushKV("payee", payee1addr);
         paymentSlot1.pushKV("script", HexStr(payee1));
         paymentSlot1.pushKV("amount", GetMasternodePayment(0, blockReward));
-        masternodeObj.pushKV("tier1", paymentSlot1);
+        masternodeObj.push_back(paymentSlot1);
 
         UniValue paymentSlot2(UniValue::VOBJ);
         paymentSlot2.pushKV("payee", payee2addr);
         paymentSlot2.pushKV("script", HexStr(payee2));
         paymentSlot2.pushKV("amount", GetMasternodePayment(1, blockReward));
-        masternodeObj.pushKV("tier2", paymentSlot2);
+        masternodeObj.push_back(paymentSlot2);
 
         UniValue paymentSlot3(UniValue::VOBJ);
         paymentSlot3.pushKV("payee", payee3addr);
         paymentSlot3.pushKV("script", HexStr(payee3));
         paymentSlot3.pushKV("amount", GetMasternodePayment(2, blockReward));
-        masternodeObj.pushKV("tier3", paymentSlot3);
+        masternodeObj.push_back(paymentSlot3);
     }
 
-    result.push_back(Pair("masternodes", masternodeObj));
+    result.push_back(Pair("masternode", masternodeObj));
     result.push_back(Pair("masternode_payments_started", pindexPrev->nHeight + 1 > consensusParams.nFirstPoSBlock));
     result.push_back(Pair("masternode_payments_enforced", sporkManager.IsSporkActive(Spork::SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)));
 
