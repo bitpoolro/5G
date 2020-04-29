@@ -705,33 +705,39 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
     bool fPrimaryStatus = mnodeman.GetNextMasternodeInQueueForPayment(pindexPrev->nHeight+1, true, nCount, mnInfo, 0);
     payee1 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
     if (!fPrimaryStatus) payee1 = sporkFailover;
+    auto payee1addr = EncodeDestination(mnInfo.pubKeyCollateralAddress.GetID());
 
     //! set secondary address
     bool fSecondaryStatus = mnodeman.GetNextMasternodeInQueueForPayment(pindexPrev->nHeight+1, true, nCount, mnInfo, 1);
     payee2 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
     if (!fSecondaryStatus) payee2 = sporkFailover;
+    auto payee2addr = EncodeDestination(mnInfo.pubKeyCollateralAddress.GetID());
 
     //! set tiertiary address
     bool fTertiaryStatus = mnodeman.GetNextMasternodeInQueueForPayment(pindexPrev->nHeight+1, true, nCount, mnInfo, 2);
     payee3 = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
     if (!fTertiaryStatus) payee3 = sporkFailover;
+    auto payee3addr = EncodeDestination(mnInfo.pubKeyCollateralAddress.GetID());
 
     UniValue masternodeObj(UniValue::VOBJ);
     {
         UniValue paymentSlot1(UniValue::VOBJ);
-        paymentSlot1.push_back(Pair("script", HexStr(payee1)));
-        paymentSlot1.push_back(Pair("amount", GetMasternodePayment(0, blockReward)));
-        masternodeObj.push_back(Pair("tier1", paymentSlot1));
+        paymentSlot1.pushKV("payee", payee1addr);
+        paymentSlot1.pushKV("script", HexStr(payee1));
+        paymentSlot1.pushKV("amount", GetMasternodePayment(0, blockReward));
+        masternodeObj.pushKV("tier1", paymentSlot1);
 
         UniValue paymentSlot2(UniValue::VOBJ);
-        paymentSlot2.push_back(Pair("script", HexStr(payee2)));
-        paymentSlot2.push_back(Pair("amount", GetMasternodePayment(1, blockReward)));
-        masternodeObj.push_back(Pair("tier2", paymentSlot2));
+        paymentSlot2.pushKV("payee", payee2addr);
+        paymentSlot2.pushKV("script", HexStr(payee2));
+        paymentSlot2.pushKV("amount", GetMasternodePayment(1, blockReward));
+        masternodeObj.pushKV("tier2", paymentSlot2);
 
         UniValue paymentSlot3(UniValue::VOBJ);
-        paymentSlot3.push_back(Pair("script", HexStr(payee3)));
-        paymentSlot3.push_back(Pair("amount", GetMasternodePayment(2, blockReward)));
-        masternodeObj.push_back(Pair("tier3", paymentSlot3));
+        paymentSlot3.pushKV("payee", payee3addr);
+        paymentSlot3.pushKV("script", HexStr(payee3));
+        paymentSlot3.pushKV("amount", GetMasternodePayment(2, blockReward));
+        masternodeObj.pushKV("tier3", paymentSlot3);
     }
 
     result.push_back(Pair("masternodes", masternodeObj));
