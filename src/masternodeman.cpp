@@ -526,59 +526,30 @@ bool CMasternodeMan::Has(const COutPoint& outpoint)
     return mapMasternodes.find(outpoint) != mapMasternodes.end();
 }
 
-//
-// Deterministically select the oldest/best masternode to pay on the network
-//
-//bool CMasternodeMan::GetNextMasternodeInQueueForPayment(bool fFilterSigTime, int& nCountRet, masternode_info_t& mnInfoRet) const
-//{
-//    return GetNextMasternodeInQueueForPayment(nCachedBlockHeight, fFilterSigTime, nCountRet, mnInfoRet, 0);
-//}
-
 bool CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCountRet, masternode_info_t& mnInfoRet, int mnType)
 {
-    mnInfoRet = masternode_info_t();
     nCountRet = 0;
+    mnInfoRet = masternode_info_t();
 
     if (!masternodeSync.IsWinnersListSynced() ||
         mnType == Params().CollateralLevels())
         return false;
 
-    // Need LOCK2 here to ensure consistent locking order because the GetBlockHash call below locks cs_main
     LOCK2(cs_main,cs);
 
-    std::vector<std::pair<int, const CMasternode*> > vecMasternodeLastPaid;
-
-    /*
-        Make a vector with all of the last paid times
-    */
-
     int nMnCount = CountMasternodes();
+    std::vector<std::pair<int, const CMasternode*> > vecMasternodeLastPaid;
 
     for (const auto& mnpair : mapMasternodes) {
         if(!mnpair.second.IsValidForPayment()) continue;
-
-        //check protocol version
         if(mnpair.second.nProtocolVersion < mnpayments.GetMinMasternodePaymentsProto()) continue;
-
-        //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
-        if(mnpayments.IsScheduled(mnpair.second, nBlockHeight)) continue;
-
-        //it's too new, wait for a cycle
         if(fFilterSigTime && mnpair.second.sigTime + (nMnCount*2.6*60) > GetAdjustedTime()) continue;
-
-        //make sure it has at least as many confirmations as there are masternodes
-        if(GetUTXOConfirmations(mnpair.first) < nMnCount) continue;
-
+        if(GetUTXOConfirmations(mnpair.first) < Params().GetConsensus().nMasternodeMinimumConfirmations) continue;
+        if(mnpair.second.RetrieveMNType() != mnType) continue;
         vecMasternodeLastPaid.push_back(std::make_pair(mnpair.second.GetLastPaidBlock(), &mnpair.second));
     }
 
     nCountRet = (int)vecMasternodeLastPaid.size();
-
-    //when the network is in the process of upgrading, don't penalize nodes that recently restarted
-    if(fFilterSigTime && nCountRet < nMnCount/3)
-        return GetNextMasternodeInQueueForPayment(nBlockHeight, false, nCountRet, mnInfoRet, mnType);
-
-    // Sort them low to high
     sort(vecMasternodeLastPaid.begin(), vecMasternodeLastPaid.end(), CompareLastPaidBlock());
 
     uint256 blockHash;
@@ -586,26 +557,23 @@ bool CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, bool f
         LogPrintf("CMasternode::GetNextMasternodeInQueueForPayment -- ERROR: GetBlockHash() failed at nBlockHeight %d\n", nBlockHeight - 101);
         return false;
     }
-    // Look at 1/10 of the oldest nodes (by last payment), calculate their scores and pay the best one
-    //  -- This doesn't look at who is being paid in the +8-10 blocks, allowing for double payments very rarely
-    //  -- 1/100 payments should be a double payment on mainnet - (1/(3000/10))*2
-    //  -- (chance per block * chances before IsScheduled will fire)
-    int nTenthNetwork = nMnCount/10;
-    int nCountTenth = 0;
+
+    int mnRecursive = 0;
     arith_uint256 nHighest = 0;
     const CMasternode *pBestMasternode = nullptr;
     for (const auto& s : vecMasternodeLastPaid) {
+        ++mnRecursive;
         arith_uint256 nScore = s.second->CalculateScore(blockHash);
-        if(nScore > nHighest /*&& s.second->RetrieveMNType() == mnType*/){
+        if(nScore > nHighest && s.second->RetrieveMNType() == mnType){
             nHighest = nScore;
             pBestMasternode = s.second;
         }
-        nCountTenth++;
-        if(nCountTenth >= nTenthNetwork) break;
+        if (mnRecursive > 10) break;
     }
-    if (pBestMasternode) {
+
+    if (pBestMasternode)
         mnInfoRet = pBestMasternode->GetInfo();
-    }
+
     return mnInfoRet.fInfoValid;
 }
 

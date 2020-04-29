@@ -129,9 +129,7 @@ CMasternode::CollateralStatus CMasternode::CheckCollateral(const COutPoint& outp
     bool fCollateralAmountValid = false;
     for(int i=0; i<Params().CollateralLevels(); i++) {
         if(coin.out.nValue == (Params().ValidCollateralAmounts()[i] * COIN)) {
-           LogPrintf("IsCorrectType() - masternode.cpp L132\n");
-           LogPrintf("nAmount == %llu\n", coin.out.nValue);
-           LogPrintf("Collat  == %llu\n", Params().ValidCollateralAmounts()[i]);
+           LogPrintf("IsCorrectType() - masternode.cpp (nAmount == %llu, nCollat  == %llu)\n", coin.out.nValue, Params().ValidCollateralAmounts()[i]);
            fCollateralAmountValid = true;
            break;
         }
@@ -899,7 +897,7 @@ void CMasternodeVerification::Relay() const
     });
 }
 
-CAmount CMasternode::CheckOutPointValue(const COutPoint& outpoint)
+CAmount CMasternode::CheckOutPointValue(const COutPoint& outpoint) const
 {
     AssertLockHeld(cs_main);
     Coin coin;
@@ -908,7 +906,7 @@ CAmount CMasternode::CheckOutPointValue(const COutPoint& outpoint)
     return coin.out.nValue;
 }
 
-int CMasternode::RetrieveMNType()
+int CMasternode::RetrieveMNType() const
 {
     CAmount nOutPointValue = CheckOutPointValue(vin.prevout);
     for(int i=0; i<Params().CollateralLevels(); i++) {
