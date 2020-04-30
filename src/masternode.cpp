@@ -368,15 +368,14 @@ void CMasternode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScan
             bool isProofOfStake = !block.IsProofOfWork();
             const auto& coinbaseTransaction = block.vtx[isProofOfStake];
 
-            CAmount nMasternodePayment = GetMasternodePayment(BlockReading->nHeight, BlockReading->nMint);
-
-            for(const CTxOut &txout : coinbaseTransaction->vout)
-                if(mnpayee == txout.scriptPubKey && nMasternodePayment == txout.nValue) {
+            for(const CTxOut &txout : coinbaseTransaction->vout) {
+                if(mnpayee == txout.scriptPubKey/*&& nMasternodePayment == txout.nValue*/) {
                     nBlockLastPaid = BlockReading->nHeight;
                     nTimeLastPaid = BlockReading->nTime;
                     LogPrint(BCLog::MASTERNODE, "CMasternode::UpdateLastPaidBlock -- searching for block with payment to %s -- found new %d\n", vin.prevout.ToString(), nBlockLastPaid);
                     return;
                 }
+            }
         }
 
         if (BlockReading->pprev == nullptr) { assert(BlockReading); break; }

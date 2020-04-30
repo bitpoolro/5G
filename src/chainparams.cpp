@@ -76,7 +76,7 @@ public:
         consensus.nSubsidyHalvingInterval = 210000;
         consensus.nFirstPoSBlock = 50;
         consensus.nInstantSendKeepLock = 24;
-        consensus.nBudgetPaymentsStartBlock = 0;
+        consensus.nBudgetPaymentsStartBlock = 8388638;
         consensus.nBudgetPaymentsCycleBlocks = 16616;
         consensus.nBudgetPaymentsWindowBlocks = 100;
         consensus.nBudgetProposalEstablishingTime = 60*60*24;
