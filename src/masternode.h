@@ -253,6 +253,10 @@ public:
     bool IsValidNetAddr() const;
     static bool IsValidNetAddr(CService addrIn);
 
+    int nLastLogTime{0};
+    bool LastLogCheck();
+    void LastLogSet();
+
     void IncreasePoSeBanScore() { if(nPoSeBanScore < MASTERNODE_POSE_BAN_MAX_SCORE) nPoSeBanScore++; }
     void DecreasePoSeBanScore() { if(nPoSeBanScore > -MASTERNODE_POSE_BAN_MAX_SCORE) nPoSeBanScore--; }
     void PoSeBan() { nPoSeBanScore = MASTERNODE_POSE_BAN_MAX_SCORE; }

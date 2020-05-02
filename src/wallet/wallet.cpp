@@ -1887,7 +1887,7 @@ void CWallet::ReacceptWalletTransactions()
 
         int nDepth = wtx.GetDepthInMainChain();
 
-        if (!wtx.IsCoinBase() && (nDepth == 0 && !wtx.isAbandoned())) {
+        if (!wtx.IsCoinBase() && !wtx.IsCoinStake() && (nDepth == 0 && !wtx.isAbandoned())) {
             mapSorted.insert(std::make_pair(wtx.nOrderPos, &wtx));
         }
     }
@@ -2361,9 +2361,6 @@ static bool IsCorrectType(CAmount nAmount, AvailableCoinsType nCoinType)
     } else if(nCoinType == ONLY_MASTERNODE_COLLATERAL) {
         for(int i=0; i<Params().CollateralLevels(); i++) {
             if(nAmount == (Params().ValidCollateralAmounts()[i] * COIN)) {
-        		LogPrintf("IsCorrectType() - wallet/wallet.cpp\n");
-        		LogPrintf("nAmount == %llu\n", nAmount);
-        		LogPrintf("Collat  == %llu\n", Params().ValidCollateralAmounts()[i]);
                 found = true;
                 break;
             }
@@ -3313,10 +3310,15 @@ bool CWallet::CreateCoinStakeKernel(CScript &kernelScript, const CScript &stakeS
 
     if (blockFrom.GetBlockTime() + Params().GetConsensus().nStakeMinAge + nHashDrift > nTimeTx) // Min age requirement
         return false;
+
     for(unsigned int i = 0; i < nHashDrift; ++i)
     {
         nTryTime = nTimeTx - i;
-        if (CheckStakeKernelHash(nBits, blockFrom, nTxPrevOffset, txPrev, prevout, nTryTime, hashProofOfStake, true, false))
+        bool stakeValid = CheckStakeKernelHash(nBits, blockFrom, nTxPrevOffset, txPrev, prevout, nTryTime, hashProofOfStake, true, false);
+        if (gArgs.GetBoolArg("-stakeinfo", true))
+            LogPrintf("%s - drift %03d prevout.hash %s prevout.n %02d hashProof %s\n", __func__, i, prevout.hash.ToString().c_str(), prevout.n, hashProofOfStake.ToString().c_str());
+
+        if (stakeValid)
         {
             //Double check that this will pass time requirements
             if (nTryTime <= chainActive.Tip()->GetMedianTimePast()) {

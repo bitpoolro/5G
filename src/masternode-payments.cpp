@@ -24,6 +24,9 @@ CCriticalSection cs_vecPayees;
 CCriticalSection cs_mapMasternodeBlocks;
 CCriticalSection cs_mapMasternodePaymentVotes;
 
+//! weird dash bug that occurs in mnb/mnp, listed here so we can test against it
+COutPoint invalidMasternodeOutpoint(uint256S("0000000000000000000000000000000000000000000000000000000000000000"), 4294967295);
+
 static bool GetBlockHash(uint256 &hash, int nBlockHeight)
 {
     if(auto index = chainActive[nBlockHeight])
@@ -656,8 +659,12 @@ bool CMasternodePaymentVote::IsValid(CNode* pnode, int nValidationHeight, std::s
         // Only ban for new mnw which is out of bounds, for old mnw MN list itself might be way too much off
         if(nRank > MNPAYMENTS_SIGNATURES_TOTAL*2 && nBlockHeight > nValidationHeight) {
             strError = strprintf("Masternode is not in the top %d (%d)", MNPAYMENTS_SIGNATURES_TOTAL*2, nRank);
-            LogPrintf("CMasternodePaymentVote::IsValid -- Error: %s\n", strError);
-            Misbehaving(pnode->GetId(), 20);
+            if (vinMasternode.prevout != invalidMasternodeOutpoint) {
+                LogPrintf("%s -- Error: %s\n", __func__, strError);
+                Misbehaving(pnode->GetId(), 20);
+            } else {
+                LogPrintf("%s -- invalid masternode vote due to broadcast bug, not punishing - Error: %s\n", __func__, strError);
+            }
         }
         // Still invalid however
         return false;

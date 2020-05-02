@@ -129,17 +129,29 @@ CMasternode::CollateralStatus CMasternode::CheckCollateral(const COutPoint& outp
     bool fCollateralAmountValid = false;
     for(int i=0; i<Params().CollateralLevels(); i++) {
         if(coin.out.nValue == (Params().ValidCollateralAmounts()[i] * COIN)) {
-           LogPrintf("IsCorrectType() - masternode.cpp (nAmount == %llu, nCollat  == %llu)\n", coin.out.nValue, Params().ValidCollateralAmounts()[i]);
            fCollateralAmountValid = true;
            break;
         }
     }
 
-    if(!fCollateralAmountValid)
+    if(!fCollateralAmountValid) {
+        LogPrintf("IsCorrectType() - FAILED (nAmount == %llu)\n", coin.out.nValue);
         return COLLATERAL_INVALID_AMOUNT;
+    }
 
     nHeightRet = coin.nHeight;
     return COLLATERAL_OK;
+}
+
+bool CMasternode::LastLogCheck()
+{
+    const int nLogPeriodSeconds = 300;
+    return (nLastLogTime > GetAdjustedTime() - nLogPeriodSeconds);
+}
+
+void CMasternode::LastLogSet()
+{
+    nLastLogTime = GetAdjustedTime();
 }
 
 void CMasternode::Check(bool fForce)
@@ -151,7 +163,8 @@ void CMasternode::Check(bool fForce)
     if(!fForce && (GetTime() - nTimeLastChecked < MASTERNODE_CHECK_SECONDS)) return;
     nTimeLastChecked = GetTime();
 
-    LogPrint(BCLog::MASTERNODE, "CMasternode::Check -- Masternode %s is in %s state\n", vin.prevout.ToString(), GetStateString());
+    if (LastLogCheck())
+        LogPrint(BCLog::MASTERNODE, "CMasternode::Check -- Masternode %s is in %s state\n", vin.prevout.ToString(), GetStateString());
 
     //once spent, stop doing the checks
     if(IsOutpointSpent()) return;
@@ -256,6 +269,9 @@ void CMasternode::Check(bool fForce)
     if(nActiveStatePrev != nActiveState) {
         LogPrint(BCLog::MASTERNODE, "CMasternode::Check -- Masternode %s is in %s state now\n", vin.prevout.ToString(), GetStateString());
     }
+
+    if (LastLogCheck())
+        LastLogSet();
 }
 
 bool CMasternode::IsEnabled() const
@@ -910,15 +926,13 @@ int CMasternode::RetrieveMNType() const
     CAmount nOutPointValue = CheckOutPointValue(vin.prevout);
     for(int i=0; i<Params().CollateralLevels(); i++) {
         if(nOutPointValue == (Params().ValidCollateralAmounts()[i] * COIN)) {
-           LogPrintf("RetrieveMNType() - masternode.cpp L958\n");
-           LogPrintf("nOutPointValue == %llu\n", nOutPointValue);
-           LogPrintf("Collat         == %llu\n", Params().ValidCollateralAmounts()[i]);
-           LogPrintf("mnType         == %d\n", i);
+           if (gArgs.IsArgSet("-debug"))
+               LogPrintf("%s - (value: %llu, mnType: %i)\n", __func__, nOutPointValue, i);
            return i; 
 	}
     }
 
-    LogPrintf("Exiting RetrieveMNType() via fallthrough...");
+    LogPrintf("%s - could not locate valid collateral amount (found %llu, not good)\n", __func__, nOutPointValue);
     return -1;
 }
 
