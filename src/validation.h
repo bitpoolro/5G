@@ -503,4 +503,6 @@ bool LoadMempool();
 
 CAmount GetProofOfStakeReward();
 
+unsigned int max_tx_weight();
+
 #endif // BITCOIN_VALIDATION_H
