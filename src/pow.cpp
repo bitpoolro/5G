@@ -11,6 +11,7 @@
 #include <chainparams.h>
 #include <arith_uint256.h>
 #include <primitives/block.h>
+#include <validation.h>
 
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake)
 {
@@ -127,7 +128,7 @@ unsigned int PoSWorkRequired(const CBlockIndex* pindexLast, const Consensus::Par
 
     int64_t nActualSpacing = 0;
     if (LastPoSBlock->nHeight != 0) {
-      if (LastPoSBlock->nHeight <= 29250) {
+      if (LastPoSBlock->nHeight <= fork_height()) {
         nActualSpacing = LastPoSBlock->GetBlockTime() - LastPoSBlock->pprev->GetBlockTime();
       } else {
         nActualSpacing = LastPoSBlock->GetBlockTime() - LastPoSBlock2->GetBlockTime();

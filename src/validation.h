@@ -504,5 +504,6 @@ bool LoadMempool();
 CAmount GetProofOfStakeReward();
 
 unsigned int max_tx_weight();
+int fork_height();
 
 #endif // BITCOIN_VALIDATION_H
