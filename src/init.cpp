@@ -618,8 +618,8 @@ void SetupServerArgs()
 
 std::string LicenseInfo()
 {
-    const std::string URL_SOURCE_CODE = "<https://github.com/5g/5g>";
-    const std::string URL_WEBSITE = "<https://5gcore.org>";
+    const std::string URL_SOURCE_CODE = "<https://github.com/5G-Cash/5G>";
+    const std::string URL_WEBSITE = "<https://FIVEG.be>";
 
     return CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2009, COPYRIGHT_YEAR) + " ") + "\n" +
            "\n" +
