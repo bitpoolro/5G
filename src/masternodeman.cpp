@@ -706,21 +706,7 @@ bool CMasternodeMan::GetMasternodeRanks(CMasternodeMan::rank_pair_vec_t& vecMast
 
 void CMasternodeMan::ProcessMasternodeConnections(CConnman& connman)
 {
-    //we don't care about this for regtest
-    if(Params().NetworkIDString() == CBaseChainParams::REGTEST) return;
-
-    connman.ForEachNode([](CNode* pnode) {
-#ifdef ENABLE_WALLET
-#if 0
-#endif
-        if(pnode->fMasternode /*&& !privateSendClient.IsMixingMasternode(pnode)*/) {
-#else
-        if(pnode->fMasternode) {
-#endif // ENABLE_WALLET
-            LogPrintf("Closing Masternode connection: peer=%d, addr=%s\n", pnode->GetId(), pnode->addr.ToString());
-            pnode->fDisconnect = true;
-        }
-    });
+    return;
 }
 
 std::pair<CService, std::set<uint256> > CMasternodeMan::PopScheduledMnbRequestConnection()
