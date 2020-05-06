@@ -5105,6 +5105,13 @@ double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex *pin
     return pindex->nChainTx / fTxTotal;
 }
 
+unsigned int max_tx_weight()
+{
+    if (chainActive.Height() >= 29250)
+        return 1000000; //! 250kb due to segwit
+    return 400000;      //! 100kb standard btc max
+}
+
 class CMainCleanup
 {
 public:
